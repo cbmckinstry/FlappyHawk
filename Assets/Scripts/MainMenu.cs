@@ -1,39 +1,20 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.EventSystems;
 
 public class MainMenu : MonoBehaviour
 {
-    [Header("Audio Sources")]
-    public AudioSource sfxSource;
-
-    [Header("Audio Clips")]
-    public AudioClip hoverSound;
-    public AudioClip clickSound;
-
+    public AudioManager audioManager;
 
     public void PlayGame()
     {
-        PlayClickSound();
+        audioManager.PlayClickSound();
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
     }
 
     public void QuitGame()
     {
-        PlayClickSound();
+        audioManager.PlayClickSound();
         Debug.Log("Game Quit!");
         Application.Quit();
-    }
-
-    public void PlayHoverSound()
-    {
-        if (sfxSource != null && hoverSound != null)
-            sfxSource.PlayOneShot(hoverSound);
-    }
-
-    public void PlayClickSound()
-    {
-        if (sfxSource != null && clickSound != null)
-            sfxSource.PlayOneShot(clickSound);
     }
 }
