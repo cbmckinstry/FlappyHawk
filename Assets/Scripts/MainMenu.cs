@@ -7,14 +7,17 @@ public class MainMenu : MonoBehaviour
 
     public void PlayGame()
     {
-        audioManager.PlayClickSound();
+        if (audioManager != null)
+            audioManager.PlayClickSound();
+
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
     }
 
     public void QuitGame()
     {
-        audioManager.PlayClickSound();
-        Debug.Log("Game Quit!");
+        if (audioManager != null)
+            audioManager.PlayClickSound();
+
         Application.Quit();
     }
 }

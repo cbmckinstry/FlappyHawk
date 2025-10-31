@@ -10,13 +10,14 @@ public class AudioManager : MonoBehaviour
     public AudioClip clickSound;
     public AudioClip menuMusic;
 
-    [Header("Volume Settings")]
+    [Header("Volume Settings (0–10 Scale)")]
     public float masterVolume = 5f;
     public float sfxVolume = 5f;
     public float musicVolume = 5f;
 
     private void Start()
     {
+        // Load saved settings (default to 5)
         masterVolume = PlayerPrefs.GetFloat("MasterVolume", 5f);
         sfxVolume = PlayerPrefs.GetFloat("SFXVolume", 5f);
         musicVolume = PlayerPrefs.GetFloat("MusicVolume", 5f);
@@ -46,10 +47,15 @@ public class AudioManager : MonoBehaviour
 
     private void ApplyVolumes()
     {
+        float master = masterVolume / 10f;
+        float sfx = sfxVolume / 10f;
+        float music = musicVolume / 10f;
+
         if (musicSource != null)
-            musicSource.volume = (musicVolume / 10f) * (masterVolume / 10f);
+            musicSource.volume = music * master;
+
         if (sfxSource != null)
-            sfxSource.volume = (sfxVolume / 10f) * (masterVolume / 10f);
+            sfxSource.volume = sfx * master;
     }
 
     // === Volume Slider Hooks ===
@@ -57,6 +63,7 @@ public class AudioManager : MonoBehaviour
     {
         masterVolume = value;
         PlayerPrefs.SetFloat("MasterVolume", value);
+        PlayerPrefs.Save();
         ApplyVolumes();
     }
 
@@ -64,6 +71,7 @@ public class AudioManager : MonoBehaviour
     {
         sfxVolume = value;
         PlayerPrefs.SetFloat("SFXVolume", value);
+        PlayerPrefs.Save();
         ApplyVolumes();
     }
 
@@ -71,6 +79,7 @@ public class AudioManager : MonoBehaviour
     {
         musicVolume = value;
         PlayerPrefs.SetFloat("MusicVolume", value);
+        PlayerPrefs.Save();
         ApplyVolumes();
     }
 }
