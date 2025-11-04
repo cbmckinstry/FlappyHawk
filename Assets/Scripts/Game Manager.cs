@@ -74,25 +74,34 @@ public class GameManager : MonoBehaviour
     }
 
     private void Update()
+{
+    bool startPressed =
+        (Keyboard.current != null && (
+            Keyboard.current.enterKey.wasPressedThisFrame ||
+            Keyboard.current.numpadEnterKey.wasPressedThisFrame
+        )) ||
+        (Gamepad.current != null && Gamepad.current.startButton.wasPressedThisFrame);
+
+    bool jumpPressed =
+        (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) ||
+        (Gamepad.current  != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
+
+    if (startPressed && !player.enabled && Time.timeScale == 0f)
     {
-        bool jumpPressed =
-            (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) ||
-            (Gamepad.current  != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
-
-        if (jumpPressed && !player.enabled && Time.timeScale == 0f)
-        {
-            Play();
-            return;
-        }
-        if (player != null && player.enabled && Time.timeScale > 0f)
-        {
-            roundElapsed += Time.unscaledDeltaTime;
-            if (jumpPressed) jumpsThisRound++;
-        }
-
-        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-            QuitGame();
+        Play();
+        return;
     }
+
+    if (player != null && player.enabled && Time.timeScale > 0f)
+    {
+        roundElapsed += Time.unscaledDeltaTime;
+        if (jumpPressed) jumpsThisRound++;
+    }
+
+    if (Keyboard.current != null && (Keyboard.current.escapeKey.wasPressedThisFrame || Keyboard.current.qKey.wasPressedThisFrame))
+        QuitGame();
+}
+
 
     public void Play()
     {

@@ -277,7 +277,7 @@ MonoBehaviour:
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
   m_Interactable: 1
-  m_TargetGraphic: {fileID: 0}
+  m_TargetGraphic: {fileID: 350791804}
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
@@ -984,7 +984,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1b86459389094d5a9212e27333ce407, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Spawner
-  pipePrefab: {fileID: 6820915945477583018, guid: 1ee1e034355f04c689c96848ac1b2662, type: 3}
+  pipePrefab: {fileID: 7412628296912923159, guid: b6f791c7d9b0d484da5e88524ccdd2a6, type: 3}
   spawnRate: 1
   minHeight: -1
   maxHeight: 2
@@ -1633,8 +1633,8 @@ CircleCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: -0.60485804, y: -0.26502213}
-  m_Radius: 15.700047
+  m_Offset: {x: -0.08221184, y: -0.03353068}
+  m_Radius: 2.3647847
 --- !u!50 &1979433715
 Rigidbody2D:
   serializedVersion: 5
@@ -1709,7 +1709,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 8861118126325051438, guid: 45c51dfdb65494b9e963d45d4f7a7a2a, type: 3}
+  m_Sprite: {fileID: 3645539862109923604, guid: 4fc77d073ea4745fb93d504e0f5bcbac, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -1730,7 +1730,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.0275, y: 0.0275, z: 1}
+  m_LocalScale: {x: 0.175, y: 0.175, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -1750,7 +1750,9 @@ MonoBehaviour:
   gravity: -9.8
   strength: 5
   sprites:
-  - {fileID: 8861118126325051438, guid: 45c51dfdb65494b9e963d45d4f7a7a2a, type: 3}
+  - {fileID: 3645539862109923604, guid: 4fc77d073ea4745fb93d504e0f5bcbac, type: 3}
+  - {fileID: -4558429248713734301, guid: c164c72e9ab9544648b2fbfebaeceb8b, type: 3}
+  - {fileID: -7240947989471435495, guid: ca3f467d9c877456a9da048cce23bc9a, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
