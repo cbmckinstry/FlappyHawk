@@ -1,96 +1,91 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
 
-    [Header("Audio Sources")]
+    [Header("Audio Sources (should be on this persistent object)")]
     public AudioSource sfxSource;
     public AudioSource musicSource;
 
-    [Header("Audio Clips")]
+    [Header("Clips")]
     public AudioClip clickSound;
     public AudioClip menuMusic;
-    public AudioClip gameMusic; // optional if you want separate music
+    public AudioClip gameMusic;
 
-    [Header("Volume Settings (0–10 Scale)")]
+    [Header("Volume (0–10)")]
     public float masterVolume = 5f;
     public float sfxVolume = 5f;
     public float musicVolume = 5f;
 
-    private void Awake()
+    void Awake()
     {
-        // Singleton setup — one AudioManager for all scenes
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        // Load saved volume settings
+        // Load saved volumes once
         masterVolume = PlayerPrefs.GetFloat("MasterVolume", 5f);
-        sfxVolume = PlayerPrefs.GetFloat("SFXVolume", 5f);
-        musicVolume = PlayerPrefs.GetFloat("MusicVolume", 5f);
-
+        sfxVolume    = PlayerPrefs.GetFloat("SFXVolume",    5f);
+        musicVolume  = PlayerPrefs.GetFloat("MusicVolume",  5f);
         ApplyVolumes();
-        PlayBackgroundMusic();
+
+        // Start menu music on first scene
+        PlayMenuMusic();
+
+        // Swap music when scenes change
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
-    public void PlayBackgroundMusic()
+    void OnDestroy()
     {
-        if (musicSource != null && menuMusic != null)
-        {
-            musicSource.clip = menuMusic;
-            musicSource.loop = true;
-            musicSource.Play();
-        }
+        if (Instance == this)
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (!musicSource) return;
+
+        if (scene.name == "MenuScreen")
+            PlayMenuMusic();
+        else if (scene.name == "Flappy Bird")
+            PlayGameMusic();
+    }
+
+    private void PlayMenuMusic()
+    {
+        if (musicSource.clip == menuMusic && musicSource.isPlaying) return;
+        musicSource.clip = menuMusic;
+        musicSource.loop = true;
+        musicSource.Play();
+    }
+
+    private void PlayGameMusic()
+    {
+        if (gameMusic == null) return; // optional
+        if (musicSource.clip == gameMusic && musicSource.isPlaying) return;
+        musicSource.clip = gameMusic;
+        musicSource.loop = true;
+        musicSource.Play();
     }
 
     public void PlayClickSound()
     {
-        if (sfxSource != null && clickSound != null)
-        {
-            sfxSource.volume = (sfxVolume / 10f) * (masterVolume / 10f);
-            sfxSource.PlayOneShot(clickSound);
-        }
+        if (sfxSource && clickSound)
+            sfxSource.PlayOneShot(clickSound, (sfxVolume/10f) * (masterVolume/10f));
     }
 
     private void ApplyVolumes()
     {
         float master = masterVolume / 10f;
-        float sfx = sfxVolume / 10f;
-        float music = musicVolume / 10f;
-
-        if (musicSource != null)
-            musicSource.volume = music * master;
-        if (sfxSource != null)
-            sfxSource.volume = sfx * master;
+        if (musicSource) musicSource.volume = (musicVolume / 10f) * master;
+        if (sfxSource)   sfxSource.volume   = (sfxVolume   / 10f) * master;
     }
 
-    // === Volume Slider Hooks ===
-    public void SetMasterVolume(float value)
-    {
-        masterVolume = value;
-        PlayerPrefs.SetFloat("MasterVolume", value);
-        PlayerPrefs.Save();
-        ApplyVolumes();
-    }
-
-    public void SetSFXVolume(float value)
-    {
-        sfxVolume = value;
-        PlayerPrefs.SetFloat("SFXVolume", value);
-        PlayerPrefs.Save();
-        ApplyVolumes();
-    }
-
-    public void SetMusicVolume(float value)
-    {
-        musicVolume = value;
-        PlayerPrefs.SetFloat("MusicVolume", value);
-        PlayerPrefs.Save();
-        ApplyVolumes();
-    }
+    // Slider hooks (we'll bind to these via a proxy; see #2)
+    public void SetMasterVolume(float v) { masterVolume = v; PlayerPrefs.SetFloat("MasterVolume", v); PlayerPrefs.Save(); ApplyVolumes(); }
+    public void SetSFXVolume(float v)    { sfxVolume    = v; PlayerPrefs.SetFloat("SFXVolume",    v); PlayerPrefs.Save(); ApplyVolumes(); }
+    public void SetMusicVolume(float v)  { musicVolume  = v; PlayerPrefs.SetFloat("MusicVolume",  v); PlayerPrefs.Save(); ApplyVolumes(); }
 }

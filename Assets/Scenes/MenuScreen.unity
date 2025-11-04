@@ -1100,6 +1100,7 @@ MonoBehaviour:
   musicSource: {fileID: 267109921}
   clickSound: {fileID: 8300000, guid: 37c0c132200ca6642b1a6a22fb5affa3, type: 3}
   menuMusic: {fileID: 8300000, guid: 852d15dd45a48764b86304fb95d75542, type: 3}
+  gameMusic: {fileID: 8300000, guid: 852d15dd45a48764b86304fb95d75542, type: 3}
   masterVolume: 5
   sfxVolume: 5
   musicVolume: 5
@@ -1286,7 +1287,7 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 0}
+  m_Resource: {fileID: 8300000, guid: 852d15dd45a48764b86304fb95d75542, type: 3}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
@@ -3006,7 +3007,7 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 0}
+  m_Resource: {fileID: 8300000, guid: 37c0c132200ca6642b1a6a22fb5affa3, type: 3}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
@@ -3573,6 +3574,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 829832128}
+  - component: {fileID: 829832129}
   m_Layer: 5
   m_Name: SFXVolume
   m_TagString: Untagged
@@ -3600,6 +3602,20 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: -100}
   m_SizeDelta: {x: 415, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &829832129
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 829832127}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2eb79a7e18fd4125b8c9887a5ee7583, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VolumeSliderBinder
+  kind: 1
+  slider: {fileID: 1948967003}
 --- !u!1 &866041694
 GameObject:
   m_ObjectHideFlags: 0
@@ -5820,6 +5836,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1409413398}
+  - component: {fileID: 1409413399}
   m_Layer: 5
   m_Name: MasterVolume
   m_TagString: Untagged
@@ -5847,6 +5864,20 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 415, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1409413399
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1409413397}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2eb79a7e18fd4125b8c9887a5ee7583, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VolumeSliderBinder
+  kind: 0
+  slider: {fileID: 924199842}
 --- !u!1 &1493919904
 GameObject:
   m_ObjectHideFlags: 0
@@ -7087,6 +7118,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1839216937}
+  - component: {fileID: 1839216938}
   m_Layer: 5
   m_Name: MusicVolume
   m_TagString: Untagged
@@ -7114,6 +7146,20 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: -200}
   m_SizeDelta: {x: 415, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1839216938
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1839216936}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2eb79a7e18fd4125b8c9887a5ee7583, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VolumeSliderBinder
+  kind: 2
+  slider: {fileID: 1270758427}
 --- !u!1 &1948967001
 GameObject:
   m_ObjectHideFlags: 0
