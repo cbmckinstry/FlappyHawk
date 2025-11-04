@@ -5,19 +5,33 @@ public class MainMenu : MonoBehaviour
 {
     public AudioManager audioManager;
 
-    public void PlayGame()
-    {
-        if (audioManager != null)
-            audioManager.PlayClickSound();
+    [Header("Panels")]
+    public GameObject mainMenuPanel;   // Canvas/MainMenu
+    public GameObject iowaMenuPanel;   // Canvas/IowaMenu
+    public GameObject settingsMenuPanel; // (optional)
+    public GameObject gamedayMenuPanel;  // (optional)
 
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
+    void PlayClick() { if (audioManager) audioManager.PlayClickSound(); }
+
+    public void ShowIowaMenu()
+    {
+        PlayClick();
+        if (mainMenuPanel) mainMenuPanel.SetActive(false);
+        if (iowaMenuPanel) iowaMenuPanel.SetActive(true);
+    }
+
+    public void BackToMain()
+    {
+        PlayClick();
+        if (iowaMenuPanel) iowaMenuPanel.SetActive(false);
+        if (mainMenuPanel) mainMenuPanel.SetActive(true);
     }
 
     public void QuitGame()
     {
-        if (audioManager != null)
-            audioManager.PlayClickSound();
-
+        PlayClick();
         Application.Quit();
     }
 }
+
+

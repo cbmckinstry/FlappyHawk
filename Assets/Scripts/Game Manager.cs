@@ -4,18 +4,23 @@ using TMPro;
 using System;
 using System.IO;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 public enum Difficulty { Easy = 0, Normal = 1, Hard = 2 }
 
 public class GameManager : MonoBehaviour
 {
+    // Set by MainMenu before loading the Game scene.
+    public static Difficulty StartDifficulty = Difficulty.Easy;
+
     public static GameManager Instance { get; private set; }
 
+    [Header("Scene Refs")]
     public Player player;
     public TextMeshProUGUI scoreText;
-    public GameObject playButton;
     public GameObject gameOver;
-    public GameObject readyButton;
+    public GameObject getReady;
+    public GameObject menuButton;
 
     [Header("Difficulty UI")]
     public Image difficultyImage;
@@ -23,94 +28,106 @@ public class GameManager : MonoBehaviour
     public Sprite normalSprite;
     public Sprite hardSprite;
 
+    [Header("Tuning")]
+    [SerializeField] private float pipeSpeed = 5f;
+    [SerializeField] private float easySpawnRate   = 1.15f;
+    [SerializeField] private float normalSpawnRate = 1.00f;
+    [SerializeField] private float hardSpawnRate   = 0.85f;
+
+    [SerializeField] private float easyGravity   = -9.8f;
+    [SerializeField] private float normalGravity = -9.8f;
+    [SerializeField] private float hardGravity   = -9.8f;
+
+    // Broadcasts so Spawner/Pipes can react in real-time if needed.
+    public static event Action<float> OnSpawnRateChanged;
+    public static event Action<float> OnPipeSpeedChanged;
+
+    public float CurrentPipeSpeed { get; private set; }
+    public float CurrentSpawnRate { get; private set; }
+
     private int score;
     private Difficulty currentDifficulty = Difficulty.Easy;
     public Difficulty CurrentDifficulty => currentDifficulty;
 
-    public static event Action<float> OnPipeSpeedChanged;
-    public float CurrentPipeSpeed { get; private set; } 
-
-    private float pipeSpeed = 5f;
-    private float easySpawnRate = 1.15f;
-    private float normalSpawnRate = 1f;
-    private float hardSpawnRate = 0.85f;
-
-    public static event Action<float> OnSpawnRateChanged;
-    
-    private float easyGravity = -9.8f;
-    private float normalGravity = -9.8f;
-    private float hardGravity = -9.8f;
-
     private DateTime roundStartUtc;
-    private float roundElapsed; 
+    private float roundElapsed;
     private int pipesSpawnedThisRound;
     private int jumpsThisRound;
 
-    public void IncreaseScore()
+    private void Awake()
     {
-        score++;
-        scoreText.text = score.ToString();
-    }
-
-    public void Awake() { 
         Instance = this;
-        Application.targetFrameRate = 60; 
-        gameOver.SetActive(false);
-        Pause(); 
-        ApplyDifficulty(); 
+        Application.targetFrameRate = 60;
+
+        if (gameOver)    gameOver.SetActive(false);
+        if (menuButton) menuButton.SetActive(true);
+        if (getReady) getReady.SetActive(true);
+        if (difficultyImage) difficultyImage.gameObject.SetActive(true);
+
+        currentDifficulty = StartDifficulty;
+
+        Pause();
+        ApplyDifficulty();
+
+        score = 0;
+        if (scoreText) scoreText.text = "0";
     }
 
     private void Update()
-{
-    if (player != null && player.enabled && Time.timeScale > 0f)
     {
-        roundElapsed += Time.unscaledDeltaTime;
-
         bool jumpPressed =
             (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) ||
-            (Mouse.current    != null && Mouse.current.leftButton.wasPressedThisFrame)  ||
             (Gamepad.current  != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
 
-        if (jumpPressed)
-            jumpsThisRound++;
+        if (jumpPressed && !player.enabled && Time.timeScale == 0f)
+        {
+            Play();
+            return;
+        }
+        if (player != null && player.enabled && Time.timeScale > 0f)
+        {
+            roundElapsed += Time.unscaledDeltaTime;
+            if (jumpPressed) jumpsThisRound++;
+        }
+
+        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            QuitGame();
     }
 
-    if (Input.GetKeyDown(KeyCode.Escape))
-        QuitGame();
-}
+    public void Play()
+    {
+        pipesSpawnedThisRound = 0;
+        jumpsThisRound = 0;
+        roundElapsed = 0f;
+        roundStartUtc = DateTime.UtcNow;
 
-public void Play()
-{
-    score = 0;
-    scoreText.text = score.ToString();
+        score = 0;
+        if (scoreText) scoreText.text = "0";
+        if (gameOver) gameOver.SetActive(false);
+        if (getReady) getReady.SetActive(false);
+        if (menuButton) menuButton.SetActive(false);
+        if (difficultyImage) difficultyImage.gameObject.SetActive(false);
 
-    pipesSpawnedThisRound = 0;
-    jumpsThisRound = 0;
-    roundElapsed = 0f;
-    roundStartUtc = DateTime.UtcNow;
+        foreach (var p in FindObjectsOfType<Pipes>())
+            Destroy(p.gameObject);
 
+        Time.timeScale = 1f;
+        if (player) player.enabled = true;
+    }
 
-    playButton.SetActive(false);
-    gameOver.SetActive(false);
-    readyButton.SetActive(false);
-    if (difficultyImage != null) difficultyImage.gameObject.SetActive(false);
+    public void Menu(){
+        SceneManager.LoadScene("MenuScreen");
+    }
 
-    Time.timeScale = 1f;
-    player.enabled = true;
+    public void GameOver()
+    {
+        if (gameOver) gameOver.SetActive(true);
+        if (menuButton) menuButton.SetActive(true);
+        if (difficultyImage) difficultyImage.gameObject.SetActive(true);
 
-    foreach (var p in FindObjectsOfType<Pipes>())
-        Destroy(p.gameObject);
-}
+        Pause();
 
-public void GameOver()
-{
-    gameOver.SetActive(true);
-    playButton.SetActive(true);
-    readyButton.SetActive(false);
-    if (difficultyImage != null) difficultyImage.gameObject.SetActive(true);
-    Pause();
-
-    RunDataLogger.AppendRun(
+        RunDataLogger.AppendRun(
             playerId: RunDataLogger.PlayerId,
             difficulty: currentDifficulty,
             score: score,
@@ -119,76 +136,73 @@ public void GameOver()
             pipesSpawned: pipesSpawnedThisRound,
             jumps: jumpsThisRound
         );
-}
+    }
 
     public void Pause()
     {
         Time.timeScale = 0f;
-        player.enabled = false;
+        if (player) player.enabled = false;
     }
 
-
-    public void ChangeDifficulty()
+    public void SetDifficulty(Difficulty d)
     {
-        currentDifficulty = (Difficulty)(((int)currentDifficulty + 1) % 3);
+        currentDifficulty = d;
+        StartDifficulty   = d;
         ApplyDifficulty();
     }
 
-    public float CurrentSpawnRate { get; private set; }
-
     private void ApplyDifficulty()
-{
-    float spawnRate;
-    Sprite currentSprite;
-    switch (currentDifficulty)
     {
-        case Difficulty.Normal:
-            spawnRate = normalSpawnRate;
-            currentSprite = normalSprite;
-            break;
-        case Difficulty.Hard:
-            spawnRate = hardSpawnRate;
-            currentSprite = hardSprite;
-            break;
-        default:
-            spawnRate = easySpawnRate;
-            currentSprite = easySprite;
-            break;
+        float spawnRate;
+        Sprite spriteToShow;
+
+        switch (currentDifficulty)
+        {
+            case Difficulty.Normal:
+                spawnRate = normalSpawnRate;
+                spriteToShow = normalSprite;
+                if (player) player.gravity = normalGravity;
+                break;
+
+            case Difficulty.Hard:
+                spawnRate = hardSpawnRate;
+                spriteToShow = hardSprite;
+                if (player) player.gravity = hardGravity;
+                break;
+
+            default: // Easy
+                spawnRate = easySpawnRate;
+                spriteToShow = easySprite;
+                if (player) player.gravity = easyGravity;
+                break;
+        }
+
+        CurrentPipeSpeed = pipeSpeed;
+        foreach (var p in FindObjectsOfType<Pipes>())
+            p.pipeSpeed = pipeSpeed;
+        OnPipeSpeedChanged?.Invoke(pipeSpeed);
+
+        CurrentSpawnRate = spawnRate;
+        OnSpawnRateChanged?.Invoke(spawnRate);
+
+        if (difficultyImage) difficultyImage.sprite = spriteToShow;
     }
 
-    CurrentPipeSpeed = pipeSpeed;
-    player.gravity = -9.8f;
+    public void IncreaseScore()
+    {
+        score++;
+        if (scoreText) scoreText.text = score.ToString();
+    }
 
-    foreach (Pipes p in FindObjectsOfType<Pipes>())
-        p.pipeSpeed = pipeSpeed;
-    OnPipeSpeedChanged?.Invoke(pipeSpeed);
-
-    // set and broadcast spawn rate
-    CurrentSpawnRate = spawnRate;             // <-- remember it
-    OnSpawnRateChanged?.Invoke(spawnRate);    // <-- broadcast
-
-    if (difficultyImage != null)
-        difficultyImage.sprite = currentSprite;
-}
+    public void RegisterJump() { jumpsThisRound++; }
+    public void RegisterPipe() { pipesSpawnedThisRound++; }
 
     public void QuitGame()
-{
-#if UNITY_EDITOR
-    UnityEditor.EditorApplication.isPlaying = false;
-#else
-    Application.Quit();
-#endif
-}
-
-public void RegisterJump()
-{
-    jumpsThisRound++;
-}
-
-public void RegisterPipe()
-{
-    pipesSpawnedThisRound++;
-}
-
-
+    {
+    #if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+    #else
+        Application.Quit();
+    #endif
+    }
 }
