@@ -1,17 +1,19 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class MainMenu : MonoBehaviour
 {
-    public AudioManager audioManager;
-
     [Header("Panels")]
-    public GameObject mainMenuPanel;   // Canvas/MainMenu
-    public GameObject iowaMenuPanel;   // Canvas/IowaMenu
-    public GameObject settingsMenuPanel; // (optional)
-    public GameObject gamedayMenuPanel;  // (optional)
+    public GameObject mainMenuPanel;
+    public GameObject iowaMenuPanel;
+    public GameObject gamedayMenuPanel;
+    public GameObject settingsMenuPanel;
+    public GameObject howToPlayMenuPanel;
+    public GameObject creditsMenuPanel;
 
-    void PlayClick() { if (audioManager) audioManager.PlayClickSound(); }
+    private void PlayClick()
+    {
+        AudioManager.Instance?.PlayClickSound();
+    }
 
     public void ShowIowaMenu()
     {
@@ -33,5 +35,3 @@ public class MainMenu : MonoBehaviour
         Application.Quit();
     }
 }
-
-

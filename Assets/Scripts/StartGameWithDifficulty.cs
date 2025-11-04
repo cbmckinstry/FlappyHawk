@@ -6,19 +6,33 @@ public class StartGameWithDifficulty : MonoBehaviour
     public void startEasy()
     {
       GameManager.StartDifficulty = Difficulty.Easy;
-      SceneManager.LoadScene("Flappy Bird");
+      SceneManager.LoadScene("IowaMode");
     }
 
     public void startNormal(){
       GameManager.StartDifficulty = Difficulty.Normal;
-      SceneManager.LoadScene("Flappy Bird");
+      SceneManager.LoadScene("IowaMode");
     }
 
     public void startHard(){
         GameManager.StartDifficulty = Difficulty.Hard;
-        SceneManager.LoadScene("Flappy Bird");
+        SceneManager.LoadScene("IowaMode");
     }
 
-   
+    public void startJV()
+    {
+        GameManager.StartDifficulty = Difficulty.JV;
+        SceneManager.LoadScene("GamedayMode");
+    }
+
+
+    public void startVarsity()
+    {
+        GameManager.StartDifficulty = Difficulty.Varsity;
+        SceneManager.LoadScene("GamedayMode");
+    }
+
+
+
 }
 

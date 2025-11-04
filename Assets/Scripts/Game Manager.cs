@@ -6,7 +6,7 @@ using System.IO;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
-public enum Difficulty { Easy = 0, Normal = 1, Hard = 2 }
+public enum Difficulty { Easy = 0, Normal = 1, Hard = 2, JV = 3, Varsity = 4 }
 
 public class GameManager : MonoBehaviour
 {
