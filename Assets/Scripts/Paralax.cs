@@ -33,10 +33,11 @@ public class Parallax : MonoBehaviour
         useBaseMap = mat.HasProperty("_BaseMap"); // URP vs Built-in
         CalibrateUvPerWorldUnit();
 
+        // Subscribe to speed updates
         GameManager.OnPipeSpeedChanged += HandlePipeSpeedChange;
 
-        // initialize immediately from current difficulty speed
-        float currentSpeed = GameManager.Instance != null ? GameManager.Instance.CurrentPipeSpeed : 0f;
+        // Initialize immediately from current pipe speed (global)
+        float currentSpeed = GameManager.CurrentPipeSpeed;
         HandlePipeSpeedChange(currentSpeed);
     }
 
@@ -46,19 +47,17 @@ public class Parallax : MonoBehaviour
     }
 
     private void Update()
-{
-    if (Mathf.Abs(uvSpeed) < 0.0001f) return;
+    {
+        if (Mathf.Abs(uvSpeed) < 0.0001f) return;
+        if (Time.timeScale <= 0f) return;
 
-    if (Time.timeScale <= 0f) return;
+        uvOffset.x += uvSpeed * Time.deltaTime * direction;
 
-    uvOffset.x += uvSpeed * Time.deltaTime * direction;
-
-    if (useBaseMap)
-        mat.SetTextureOffset("_BaseMap", uvOffset);
-    else
-        mat.mainTextureOffset = uvOffset;
-}
-
+        if (useBaseMap)
+            mat.SetTextureOffset("_BaseMap", uvOffset);
+        else
+            mat.mainTextureOffset = uvOffset;
+    }
 
     private void CalibrateUvPerWorldUnit()
     {
@@ -73,7 +72,7 @@ public class Parallax : MonoBehaviour
 
     private void HandlePipeSpeedChange(float pipeSpeed)
     {
-        // convert world speed to UV scroll speed
+        // Convert world speed to UV scroll speed
         float worldToUV = uvPerWorldUnit > 0f ? uvPerWorldUnit : 0.001f;
         uvSpeed = pipeSpeed * worldToUV * (matchPipesExactly ? 1f : parallaxRatio);
     }

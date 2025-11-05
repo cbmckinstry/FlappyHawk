@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
+[RequireComponent(typeof(Slider))]
 public class VolumeSlider : MonoBehaviour
 {
     public enum VolumeType { Master, SFX, Music }
@@ -11,53 +12,65 @@ public class VolumeSlider : MonoBehaviour
     public Slider slider;
     public TMP_Text valueText;
 
+    private bool initialized = false;
+
     private void Awake()
     {
-        if (!slider) slider = GetComponent<Slider>();
-        if (!valueText) valueText = GetComponentInChildren<TMP_Text>();
+        slider ??= GetComponent<Slider>();
+        valueText ??= GetComponentInChildren<TMP_Text>();
     }
 
     private void OnEnable()
     {
         if (!slider) return;
 
-        float startValue;
-
-        // Prefer PlayerPrefs if saved, otherwise use AudioManager defaults
-        if (PlayerPrefs.HasKey($"{type}Volume"))
-        {
-            startValue = PlayerPrefs.GetFloat($"{type}Volume");
-        }
-        else if (AudioManager.Instance != null)
-        {
-            switch (type)
-            {
-                case VolumeType.Master: startValue = AudioManager.Instance.masterVolume; break;
-                case VolumeType.SFX: startValue = AudioManager.Instance.sfxVolume; break;
-                case VolumeType.Music: startValue = AudioManager.Instance.musicVolume; break;
-                default: startValue = 5f; break;
-            }
-        }
-        else
-        {
-            startValue = 5f;
-        }
-
+        float startValue = LoadStartingValue();
         startValue = Mathf.Clamp(startValue, 0f, 10f);
+
+        // Initialize without triggering event
         slider.SetValueWithoutNotify(startValue);
         UpdateValueText(startValue);
+
         slider.onValueChanged.AddListener(HandleValueChanged);
+        initialized = true;
     }
 
     private void OnDisable()
     {
-        if (slider)
+        if (slider && initialized)
+        {
             slider.onValueChanged.RemoveListener(HandleValueChanged);
+            initialized = false;
+        }
+    }
+
+    private float LoadStartingValue()
+    {
+        string prefKey = $"{type}Volume";
+
+        if (PlayerPrefs.HasKey(prefKey))
+            return PlayerPrefs.GetFloat(prefKey);
+
+        if (AudioManager.Instance != null)
+        {
+            return type switch
+            {
+                VolumeType.Master => AudioManager.Instance.masterVolume,
+                VolumeType.SFX => AudioManager.Instance.sfxVolume,
+                VolumeType.Music => AudioManager.Instance.musicVolume,
+                _ => 5f
+            };
+        }
+
+        return 5f;
     }
 
     private void HandleValueChanged(float value)
     {
+        if (!initialized) return;
+
         UpdateValueText(value);
+
         if (AudioManager.Instance == null) return;
 
         switch (type)
@@ -65,18 +78,24 @@ public class VolumeSlider : MonoBehaviour
             case VolumeType.Master:
                 AudioManager.Instance.SetMasterVolume(value);
                 break;
+
             case VolumeType.SFX:
                 AudioManager.Instance.SetSFXVolume(value);
                 break;
+
             case VolumeType.Music:
                 AudioManager.Instance.SetMusicVolume(value);
                 break;
         }
+
+        // Persist the setting
+        PlayerPrefs.SetFloat($"{type}Volume", value);
+        PlayerPrefs.Save();
     }
 
     private void UpdateValueText(float value)
     {
         if (valueText)
-            valueText.text = value.ToString("F0");
+            valueText.text = Mathf.RoundToInt(value).ToString();
     }
 }

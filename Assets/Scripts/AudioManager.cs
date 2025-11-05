@@ -12,7 +12,8 @@ public class AudioManager : MonoBehaviour
     [Header("Clips")]
     public AudioClip clickSound;
     public AudioClip menuMusic;
-    public AudioClip gameMusic;
+    public AudioClip iowaMusic;
+    public AudioClip gameDayMusic;
 
     [Header("Volume (0–10) Defaults")]
     [Range(0f, 10f)] public float masterVolume = 10f;
@@ -21,7 +22,7 @@ public class AudioManager : MonoBehaviour
 
     private void Awake()
     {
-        // Ensure only one instance persists
+        // Singleton pattern (persist across scenes)
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -31,13 +32,11 @@ public class AudioManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        // Load saved volumes (use defaults if none exist)
+        // Load saved volumes
         masterVolume = PlayerPrefs.GetFloat("MasterVolume", masterVolume);
         sfxVolume = PlayerPrefs.GetFloat("SFXVolume", sfxVolume);
         musicVolume = PlayerPrefs.GetFloat("MusicVolume", musicVolume);
-
         ApplyVolumes();
-        PlayMenuMusic();
 
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
@@ -52,28 +51,36 @@ public class AudioManager : MonoBehaviour
     {
         if (!musicSource) return;
 
-        if (scene.name == "MenuScreen")
-            PlayMenuMusic();
-        else
-            PlayGameMusic();
+        switch (scene.name)
+        {
+            case "MenuScreen":
+            case "MainMenu":
+                PlayMusic(menuMusic);
+                break;
+
+            case "IowaScene":
+            case "IowaMode":
+                PlayMusic(iowaMusic);
+                break;
+
+            case "GameDayScene":
+            case "GamedayMode":
+                PlayMusic(gameDayMusic);
+                break;
+
+            default:
+                PlayMusic(menuMusic); // fallback
+                break;
+        }
     }
 
-    private void PlayMenuMusic()
+    // ————————— MUSIC —————————
+    private void PlayMusic(AudioClip clip)
     {
-        if (menuMusic == null || (musicSource.clip == menuMusic && musicSource.isPlaying))
-            return;
+        if (clip == null) return;
+        if (musicSource.clip == clip && musicSource.isPlaying) return;
 
-        musicSource.clip = menuMusic;
-        musicSource.loop = true;
-        musicSource.Play();
-    }
-
-    private void PlayGameMusic()
-    {
-        if (gameMusic == null || (musicSource.clip == gameMusic && musicSource.isPlaying))
-            return;
-
-        musicSource.clip = gameMusic;
+        musicSource.clip = clip;
         musicSource.loop = true;
         musicSource.Play();
     }
@@ -87,6 +94,7 @@ public class AudioManager : MonoBehaviour
         }
     }
 
+    // ————————— VOLUME —————————
     public void ApplyVolumes()
     {
         float master = masterVolume / 10f;

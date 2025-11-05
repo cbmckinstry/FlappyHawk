@@ -16,101 +16,72 @@ public class MainMenu : MonoBehaviour
         AudioManager.Instance?.PlayClickSound();
     }
 
-    // ===== MENU NAVIGATION =====
+    // ---------------- MENU NAVIGATION ----------------
+    public void ShowIowaMenu() => SwitchPanel(mainMenuPanel, iowaMenuPanel);
+    public void ShowGamedayMenu() => SwitchPanel(mainMenuPanel, gamedayMenuPanel);
+    public void ShowSettings() => SwitchPanel(mainMenuPanel, settingsMenuPanel);
+    public void ShowHowToPlay() => SwitchPanel(mainMenuPanel, howToPlayMenuPanel);
+    public void ShowCredits() => SwitchPanel(mainMenuPanel, creditsMenuPanel);
+    public void BackToMain() => ResetToMain();
 
-    public void ShowIowaMenu()
+    private void SwitchPanel(GameObject from, GameObject to)
     {
         PlayClick();
-        TogglePanels(mainMenuPanel, iowaMenuPanel);
-    }
-
-    public void ShowGamedayMenu()
-    {
-        PlayClick();
-        TogglePanels(mainMenuPanel, gamedayMenuPanel);
-    }
-
-    public void ShowSettings()
-    {
-        PlayClick();
-        TogglePanels(mainMenuPanel, settingsMenuPanel);
-    }
-
-    public void ShowHowToPlay()
-    {
-        PlayClick();
-        TogglePanels(mainMenuPanel, howToPlayMenuPanel);
-    }
-
-    public void ShowCredits()
-    {
-        PlayClick();
-        TogglePanels(mainMenuPanel, creditsMenuPanel);
-    }
-
-    public void BackToMain()
-    {
-        PlayClick();
-        HideAllMenus();
-        if (mainMenuPanel) mainMenuPanel.SetActive(true);
-    }
-
-    private void TogglePanels(GameObject from, GameObject to)
-    {
         if (from) from.SetActive(false);
         if (to) to.SetActive(true);
     }
 
-    private void HideAllMenus()
-    {
-        if (iowaMenuPanel) iowaMenuPanel.SetActive(false);
-        if (gamedayMenuPanel) gamedayMenuPanel.SetActive(false);
-        if (settingsMenuPanel) settingsMenuPanel.SetActive(false);
-        if (howToPlayMenuPanel) howToPlayMenuPanel.SetActive(false);
-        if (creditsMenuPanel) creditsMenuPanel.SetActive(false);
-    }
-
-    // ===== DIFFICULTY START BUTTONS =====
-
-    public void StartEasy()
-    {
-        StartGame(Difficulty.Easy, "IowaMode");
-    }
-
-    public void StartNormal()
-    {
-        StartGame(Difficulty.Normal, "IowaMode");
-    }
-
-    public void StartHard()
-    {
-        StartGame(Difficulty.Hard, "IowaMode");
-    }
-
-    public void StartJV()
-    {
-        StartGame(Difficulty.JV, "GamedayMode");
-    }
-
-    public void StartVarsity()
-    {
-        StartGame(Difficulty.Varsity, "GamedayMode");
-    }
-
-    private void StartGame(Difficulty difficulty, string sceneName)
+    private void ResetToMain()
     {
         PlayClick();
+        iowaMenuPanel.SetActive(false);
+        gamedayMenuPanel.SetActive(false);
+        settingsMenuPanel.SetActive(false);
+        howToPlayMenuPanel.SetActive(false);
+        creditsMenuPanel.SetActive(false);
+        mainMenuPanel.SetActive(true);
+    }
+
+    // ---------------- START BUTTONS ----------------
+    public void StartEasy() => StartGame(GameManager.Difficulty.Easy, "IowaScene");
+    public void StartNormal() => StartGame(GameManager.Difficulty.Normal, "IowaScene");
+    public void StartHard() => StartGame(GameManager.Difficulty.Hard, "IowaScene");
+
+    public void StartCollege() => StartGame(GameManager.Difficulty.Easy, "GamedayScene", GameManager.GameDayDifficulty.College);
+    public void StartPro() => StartGame(GameManager.Difficulty.Normal, "GamedayScene", GameManager.GameDayDifficulty.Pro);
+
+    private void StartGame(GameManager.Difficulty difficulty, string sceneName, GameManager.GameDayDifficulty? gameDayDiff = null)
+    {
+        PlayClick();
+
+        // Set Iowa difficulty
         GameManager.StartDifficulty = difficulty;
+
+        // Set GameDay difficulty if provided
+        if (gameDayDiff.HasValue)
+        {
+            if (GameManager.GameDayInstance != null)
+            {
+                GameManager.GameDayInstance.SetGameDayDifficulty(gameDayDiff.Value);
+            }
+            else
+            {
+                // Persist for scene load (in case GameDayManager isn't active yet)
+                PlayerPrefs.SetInt("GameDayDifficulty", (int)gameDayDiff.Value);
+                PlayerPrefs.Save();
+            }
+        }
+
+        // Load the appropriate scene
         SceneManager.LoadScene(sceneName);
     }
 
-    // Quit Game
-
+    // ---------------- SYSTEM ----------------
     public void QuitGame()
     {
         PlayClick();
 #if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
+        UnityEditor.EditorApplication.isPlaying = false;
 #else
         Application.Quit();
 #endif
