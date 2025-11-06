@@ -10,7 +10,7 @@ public class BallCarrierBird : MonoBehaviour
     public float pipeSpeed = 4.5f;
 
     [Header("Flight Pattern")]
-    [SerializeField] private float bobAmplitude = 0.5f;     // Vertical bob amplitude
+    [SerializeField] private float bobAmplitude = 0.5f;     
     [SerializeField] private float bobFrequency = 1f;       // Speed of bobbing
 
     [Header("Animation")]

@@ -145,7 +145,7 @@ public class Football : MonoBehaviour
             rb = gameObject.AddComponent<Rigidbody2D>();
 
         rb.bodyType = RigidbodyType2D.Dynamic;
-        rb.gravityScale = 1.5f; // slightly stronger gravity so it falls faster
+        rb.gravityScale = 2.0f; // slightly stronger gravity so it falls faster
 
         // Reset any old velocity
         rb.linearVelocity = Vector2.zero;
@@ -153,7 +153,7 @@ public class Football : MonoBehaviour
         // Apply a small forward-and-downward impulse
         float forwardForce = 3f;  // adjust as needed
         float downwardForce = 2f; // adjust as needed
-        Vector2 dropDirection = new Vector2(1f, -1f).normalized;
+        Vector2 dropDirection = new Vector2(1.5f, -1f).normalized;
 
         rb.AddForce(dropDirection * new Vector2(forwardForce, downwardForce).magnitude, ForceMode2D.Impulse);
     }

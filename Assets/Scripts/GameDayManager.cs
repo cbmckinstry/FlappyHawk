@@ -128,7 +128,7 @@ public class GameDayManager : MonoBehaviour
         // Centralize enemy scoring for defense failure HERE
         if (!playerWon)
         {
-            enemyScore += 1;
+            enemyScore += 3;
             SetEnemyScoreUI(enemyScore);
         }
 
@@ -171,7 +171,7 @@ public class GameDayManager : MonoBehaviour
     /// <summary>
     /// Enemy scoring (turnovers, defense failures, etc.)
     /// </summary>
-    public void IncreaseOpponentScore(int amount = 1)
+    public void IncreaseOpponentScore(int amount = 3)
     {
         if (amount <= 0) return;
         enemyScore += amount;
@@ -182,7 +182,7 @@ public class GameDayManager : MonoBehaviour
     /// <summary>
     /// Player scoring. Kept name to match existing calls in Spawner/Football.
     /// </summary>
-    public void IncreaseScore(int amount = 1)
+    public void IncreaseScore(int amount = 6)
     {
         if (amount <= 0) return;
         playerScore += amount;
@@ -242,4 +242,6 @@ public void OnPlayerDeathReset()
         CurrentSpawnRate = Mathf.Max(0.05f, rate);
         OnSpawnRateChanged?.Invoke(CurrentSpawnRate);
     }
+
+    
 }

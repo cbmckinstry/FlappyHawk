@@ -61,7 +61,7 @@ public class GoalPost : MonoBehaviour
             Football carriedBall = FindFirstObjectByType<Football>();
             if (carriedBall != null && carriedBall.IsCarried())
             {
-                GameManager.IncreaseScore(7);
+                GameManager.IncreaseScore(6);
                 Destroy(carriedBall.gameObject);
                 hasScored = true;
                 TriggerDefenseRound();
