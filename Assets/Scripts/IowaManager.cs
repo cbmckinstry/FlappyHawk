@@ -91,7 +91,7 @@ public class IowaManager : MonoBehaviour
 
     // wipe old run’s spawned objects
     foreach (var obj in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
-        if (obj is Pipes or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or Football)
+        if (obj is Pipes or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or Football or GoalPost or BallCarrierBird)
             Destroy(obj.gameObject);
 
     // >>> NEW: reset Game Day
