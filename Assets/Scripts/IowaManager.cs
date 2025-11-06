@@ -90,7 +90,7 @@ public class IowaManager : MonoBehaviour
         player.enabled = true;
 
         foreach (var obj in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
-            if (obj is Pipes or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet)
+            if (obj is Pipes or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or Football)
                 Destroy(obj.gameObject);
 
         FindFirstObjectByType<Spawner>()?.ResetSpawner();

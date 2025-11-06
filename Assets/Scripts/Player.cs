@@ -114,6 +114,10 @@ public class Player : MonoBehaviour
         {
             TakeDamage();
         }
+        if (other.gameObject.CompareTag("Ground"))
+        {
+            DieToGround();
+        }
         else if (other.gameObject.CompareTag("Scoring"))
         {
             GameManager.IncreaseScore();
@@ -163,6 +167,13 @@ public class Player : MonoBehaviour
         }
         GameManager.OnPlayerHealed(health);
     }
+
+
+private void DieToGround()
+{
+    Debug.Log("[Player] Ground hit — instant death.");
+    GameManager.GameOver();  // bypass helmet/health entirely
+}
 
     public int GetHealth() => health;
     public int GetMaxHealth() => maxHealth;

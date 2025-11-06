@@ -50,6 +50,20 @@ public class Spawner : MonoBehaviour
     private const float WAVE_SPAWN_DELAY = 0.5f;
     private int wavesSinceLastHelmet = 0;
 
+// Goal posts (Game Day)
+[SerializeField] private float goalPostSpawnRate = 10f; // seconds between posts on offense
+[SerializeField] private int   maxGoalPostsPerDrive = 4; // cap per drive
+
+private float goalPostTimer = 0f;
+private int   goalPostsThisDrive = 0;
+private bool  prevInDefenseRound = true;
+
+// Optional: track instances if you want to clean them up on defense/reset
+private readonly List<GameObject> activeGoalPosts = new();
+
+
+
+
     private void OnEnable()
     {
         GameManager.OnSpawnRateChanged += HandleSpawnRateChanged;
@@ -100,43 +114,80 @@ public class Spawner : MonoBehaviour
     }
 
     private void UpdateGameDaySpawning()
+{
+    GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
+    if (gameDayMgr == null) return;
+
+    // --- Edge-triggered round transition handling (defense <-> offense) ---
+    if (gameDayMgr.InDefenseRound != prevInDefenseRound)
     {
-        GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
-        if (gameDayMgr == null) return;
-
-        if (!gameDayMgr.InDefenseRound && !ballSpawned)
+        if (!gameDayMgr.InDefenseRound)
         {
-            SpawnGameDayBall();
-            ballSpawned = true;
-            return;
+            // Entered OFFENSE: reset per-drive counters/timer
+            goalPostsThisDrive = 0;
+            goalPostTimer = 0f;
         }
-
-        if (gameDayMgr.IsBallCarrierSpawningThisFrame() || gameDayMgr.IsSpawningPaused())
-            return;
-
-        if (waveSpawnCooldown > 0f)
+        else
         {
-            waveSpawnCooldown -= Time.deltaTime;
-            return;
+            // Entered DEFENSE: allow fresh spawns next offense
+            goalPostsThisDrive = 0;
+            goalPostTimer = 0f;
+
         }
+        prevInDefenseRound = gameDayMgr.InDefenseRound;
+    }
 
-        timer += Time.deltaTime;
-        if (timer >= spawnRate)
+    // --- Continuous goal-post spawning while ON OFFENSE (runs before early returns) ---
+    if (!gameDayMgr.InDefenseRound && !gameDayMgr.IsSpawningPaused())
+    {
+        if (goalPostsThisDrive < maxGoalPostsPerDrive)
         {
-            timer = 0f;
-
-            if (wavesSinceLastHelmet >= 5 && Random.value < 0.5f)
+            goalPostTimer += Time.deltaTime;
+            if (goalPostTimer >= goalPostSpawnRate)
             {
-                SpawnGameDayHelmet();
-                wavesSinceLastHelmet = 0;
-            }
-            else
-            {
-                SpawnGameDayWave(gameDayMgr.InDefenseRound);
-                wavesSinceLastHelmet++;
+                SpawnGoalPosts(gameDayMgr);
+                goalPostsThisDrive++;
+                goalPostTimer = 0f;
             }
         }
     }
+
+    // --- existing ball & wave logic (unchanged) ---
+    if (!gameDayMgr.InDefenseRound && !ballSpawned)
+    {
+        SpawnGameDayBall();
+        ballSpawned = true;
+        return;
+    }
+
+    if (gameDayMgr.IsBallCarrierSpawningThisFrame() || gameDayMgr.IsSpawningPaused())
+        return;
+
+    if (waveSpawnCooldown > 0f)
+    {
+        waveSpawnCooldown -= Time.deltaTime;
+        return;
+    }
+
+    timer += Time.deltaTime;
+    if (timer >= spawnRate)
+    {
+        timer = 0f;
+
+        if (wavesSinceLastHelmet >= 5 && Random.value < 0.5f)
+        {
+            SpawnGameDayHelmet();
+            wavesSinceLastHelmet = 0;
+        }
+        else
+        {
+            SpawnGameDayWave(gameDayMgr.InDefenseRound);
+            wavesSinceLastHelmet++;
+        }
+    }
+}
+
+
 
     private void SpawnGameDayBall()
     {
@@ -221,6 +272,32 @@ public class Spawner : MonoBehaviour
         FindObjectOfType<GameDayManager>()?.OnWaveCompleted();
         waveSpawnCooldown = WAVE_SPAWN_DELAY;
     }
+
+    private void SpawnGoalPosts(GameDayManager gdm)
+{
+    GameObject prefab = gdm.CurrentGameDayDifficulty == GameManager.GameDayDifficulty.Pro
+        ? goalPostProPrefab
+        : goalPostEasyPrefab;
+
+    if (prefab == null) return;
+
+    // Spawn near right edge at ground height
+    Vector3 spawnPos = transform.position;
+    spawnPos.y = groundSpawnHeight;
+
+    if (Camera.main != null)
+    {
+        Vector3 screenRight = Camera.main.ScreenToWorldPoint(new Vector3(Camera.main.pixelWidth, 0, 0));
+
+        spawnPos.x = screenRight.x + 0.5f;
+    }
+
+    var posts = Instantiate(prefab, spawnPos, Quaternion.identity);
+    activeGoalPosts.Add(posts);
+}
+
+
+
 
     public void SpawnBallCarrierAtScreenCenter()
     {
@@ -316,15 +393,23 @@ public class Spawner : MonoBehaviour
     }
 
     public void ResetSpawner()
-    {
-        parentTornadoSpawned = false;
-        timer = 0f;
-        gameDayWavesCompleted = 0;
-        enemiesInCurrentWave = 0;
-        ballSpawned = false;
-        waveSpawnCooldown = 0f;
-        wavesSinceLastHelmet = 0;
-    }
+{
+    parentTornadoSpawned = false;
+    timer = 0f;
+    gameDayWavesCompleted = 0;
+    enemiesInCurrentWave = 0;
+    ballSpawned = false;
+    waveSpawnCooldown = 0f;
+    wavesSinceLastHelmet = 0;
+
+    // Goal post timers/counters
+    goalPostTimer = 0f;
+    goalPostsThisDrive = 0;
+    prevInDefenseRound = true;
+
+    activeGoalPosts.Clear();
+}
+
 
     public void ResetGameDayBall() => ballSpawned = false;
 

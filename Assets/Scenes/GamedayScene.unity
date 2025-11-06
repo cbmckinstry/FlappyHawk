@@ -2103,7 +2103,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameDayManager
   modeText: {fileID: 343688574}
-  goalPostSpawnX: 12
+  goalPostSpawnX: 0
   defenseRoundDuration: 10
 --- !u!1 &1139996080
 GameObject:

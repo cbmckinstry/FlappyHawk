@@ -66,7 +66,7 @@ public class Football : MonoBehaviour
             // If player carrying ball goes off-screen, trigger defense
             if (IsPlayerOffScreen())
             {
-                Debug.Log("[Football] Player carrying ball went off-screen — entering Defense mode.");
+                Debug.Log("[Football] Player carrying ball went off-screen ï¿½ entering Defense mode.");
                 isCarried = false;
 
                 var gameDayMgr = GameManager.GameDayInstance;
@@ -94,12 +94,12 @@ public class Football : MonoBehaviour
                 {
                     if (gameDayMgr.IsInDefenseRound())
                     {
-                        Debug.Log("[Football] Ball despawned during defense — opponent scores!");
+                        Debug.Log("[Football] Ball despawned during defense ï¿½ opponent scores!");
                         gameDayMgr.EndDefenseRound(false);
                     }
                     else
                     {
-                        Debug.Log("[Football] Ball despawned in offense — switching to defense.");
+                        Debug.Log("[Football] Ball despawned in offense ï¿½ switching to defense.");
                         gameDayMgr.StartDefenseRound();
                     }
                 }
@@ -135,17 +135,30 @@ public class Football : MonoBehaviour
     }
 
     public void Drop()
-    {
-        isCarried = false;
+{
+    isCarried = false;
 
-        if (player != null)
-        {
-            Rigidbody2D rb = GetComponent<Rigidbody2D>();
-            if (rb == null) rb = gameObject.AddComponent<Rigidbody2D>();
-            rb.bodyType = RigidbodyType2D.Dynamic;
-            rb.gravityScale = 1f;
-        }
+    if (player != null)
+    {
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb == null)
+            rb = gameObject.AddComponent<Rigidbody2D>();
+
+        rb.bodyType = RigidbodyType2D.Dynamic;
+        rb.gravityScale = 1.5f; // slightly stronger gravity so it falls faster
+
+        // Reset any old velocity
+        rb.linearVelocity = Vector2.zero;
+
+        // Apply a small forward-and-downward impulse
+        float forwardForce = 3f;  // adjust as needed
+        float downwardForce = 2f; // adjust as needed
+        Vector2 dropDirection = new Vector2(1f, -1f).normalized;
+
+        rb.AddForce(dropDirection * new Vector2(forwardForce, downwardForce).magnitude, ForceMode2D.Impulse);
     }
+}
+
 
     public bool IsCarried() => isCarried;
 }
