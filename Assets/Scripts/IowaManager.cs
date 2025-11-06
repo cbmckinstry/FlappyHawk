@@ -72,31 +72,43 @@ public class IowaManager : MonoBehaviour
     }
 
     public void Play()
+{
+    score = 0;
+    scoreText.text = "0";
+    pipesSpawned = 0;
+    jumps = 0;
+    roundElapsed = 0f;
+    roundStartUtc = DateTime.UtcNow;
+
+    playButton.SetActive(false);
+    gameOver.SetActive(false);
+    menuButton.SetActive(false);
+    readyButton?.SetActive(false);
+    difficultyImage?.gameObject.SetActive(false);
+
+    Time.timeScale = 1f;
+    player.enabled = true;
+
+    // wipe old run’s spawned objects
+    foreach (var obj in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+        if (obj is Pipes or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or Football)
+            Destroy(obj.gameObject);
+
+    // >>> NEW: reset Game Day
+    var gdm = FindFirstObjectByType<GameDayManager>();
+    if (gdm != null)
     {
-        score = 0;
-        scoreText.text = "0";
-        pipesSpawned = 0;
-        jumps = 0;
-        roundElapsed = 0f;
-        roundStartUtc = DateTime.UtcNow;
-
-        playButton.SetActive(false);
-        gameOver.SetActive(false);
-        menuButton.SetActive(false);
-        readyButton?.SetActive(false);
-        difficultyImage?.gameObject.SetActive(false);
-
-        Time.timeScale = 1f;
-        player.enabled = true;
-
-        foreach (var obj in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
-            if (obj is Pipes or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or Football)
-                Destroy(obj.gameObject);
-
-        FindFirstObjectByType<Spawner>()?.ResetSpawner();
-
-        ApplyDifficulty();
+        gdm.ResetScores();         // 0–out the UI right away
+        gdm.OnPlayerDeathReset();  // also clears defense flags and resets spawner
     }
+    // <<< END NEW
+
+    // your existing reset (safe even if also called by OnPlayerDeathReset)
+    FindFirstObjectByType<Spawner>()?.ResetSpawner();
+
+    ApplyDifficulty();
+}
+
 
     public void GameOver()
     {

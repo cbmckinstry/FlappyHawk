@@ -38,6 +38,10 @@ public class Spawner : MonoBehaviour
     [Range(0f, 1f)] public float cornKernelWeight = 0.7f;
     [Range(0f, 1f)] public float helmetWeight = 0.3f;
 
+    [SerializeField] private float defenseCarrierDelay = 3.0f; // tweak in Inspector
+    private bool defenseCarrierSpawned = false;
+    private float defenseTimer = 0f;    
+
     private float timer;
     private bool parentTornadoSpawned = false;
     private GameObject parentTornado;
@@ -50,6 +54,8 @@ public class Spawner : MonoBehaviour
     private const float WAVE_SPAWN_DELAY = 0.5f;
     private int wavesSinceLastHelmet = 0;
 
+
+
 // Goal posts (Game Day)
 [SerializeField] private float goalPostSpawnRate = 10f; // seconds between posts on offense
 [SerializeField] private int   maxGoalPostsPerDrive = 4; // cap per drive
@@ -57,6 +63,11 @@ public class Spawner : MonoBehaviour
 private float goalPostTimer = 0f;
 private int   goalPostsThisDrive = 0;
 private bool  prevInDefenseRound = true;
+
+// --- Kickstart window to ensure offense resumes after defense ---
+[SerializeField] private float offenseKickstartSeconds = 1.5f; // can adjust in Inspector
+private float offenseKickstartTimer = 0f;
+
 
 // Optional: track instances if you want to clean them up on defense/reset
 private readonly List<GameObject> activeGoalPosts = new();
@@ -118,27 +129,51 @@ private readonly List<GameObject> activeGoalPosts = new();
     GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
     if (gameDayMgr == null) return;
 
-    // --- Edge-triggered round transition handling (defense <-> offense) ---
+    // --- Edge-triggered transition handling (defense <-> offense) ---
     if (gameDayMgr.InDefenseRound != prevInDefenseRound)
+{
+    if (gameDayMgr.InDefenseRound)
     {
-        if (!gameDayMgr.InDefenseRound)
-        {
-            // Entered OFFENSE: reset per-drive counters/timer
-            goalPostsThisDrive = 0;
-            goalPostTimer = 0f;
-        }
-        else
-        {
-            // Entered DEFENSE: allow fresh spawns next offense
-            goalPostsThisDrive = 0;
-            goalPostTimer = 0f;
+        // Entered DEFENSE
+        defenseCarrierSpawned = false;
+        defenseTimer = 0f;
+        goalPostsThisDrive = 0;
+        goalPostTimer = 0f;
+    }
+    else
+    {
+        // === Entered OFFENSE ===
+        ballSpawned = false;                  // allow ball to spawn again
+        timer = 0f;                           // reset wave timer
+        waveSpawnCooldown = WAVE_SPAWN_DELAY; // small breathing room before first wave
+        goalPostsThisDrive = 0;               // restart goal-post trickle
+        goalPostTimer = 0f;
 
-        }
-        prevInDefenseRound = gameDayMgr.InDefenseRound;
+        offenseKickstartTimer = offenseKickstartSeconds; // <<< NEW
+    }
+    prevInDefenseRound = gameDayMgr.InDefenseRound;
+}
+
+    // --- DEFENSE: spawn exactly one ball-carrier bird, then stop spawning ---
+    if (gameDayMgr.InDefenseRound)
+{
+    // Wait before spawning the single ball-carrier bird
+    defenseTimer += Time.deltaTime;
+
+    if (!defenseCarrierSpawned && defenseTimer >= defenseCarrierDelay)
+    {
+        SpawnBallCarrierAtScreenCenter();
+        defenseCarrierSpawned = true;
     }
 
-    // --- Continuous goal-post spawning while ON OFFENSE (runs before early returns) ---
-    if (!gameDayMgr.InDefenseRound && !gameDayMgr.IsSpawningPaused())
+    // No other spawns during defense
+    return;
+}
+
+    // --- OFFENSE: (normal drive) goal-post trickle + ball and bird waves ---
+
+    // Continuous goal-post spawning while ON OFFENSE (before early returns)
+    if (!gameDayMgr.IsSpawningPaused())
     {
         if (goalPostsThisDrive < maxGoalPostsPerDrive)
         {
@@ -152,17 +187,33 @@ private readonly List<GameObject> activeGoalPosts = new();
         }
     }
 
-    // --- existing ball & wave logic (unchanged) ---
-    if (!gameDayMgr.InDefenseRound && !ballSpawned)
+    // Spawn the football once per drive
+    if (!gameDayMgr.IsSpawningPaused() && !ballSpawned)
     {
         SpawnGameDayBall();
         ballSpawned = true;
         return;
     }
 
-    if (gameDayMgr.IsBallCarrierSpawningThisFrame() || gameDayMgr.IsSpawningPaused())
-        return;
+    // Respect any pause flags
+    // Kickstart window: temporarily ignore lingering pause flags
+    bool paused = gameDayMgr.IsSpawningPaused();
+    bool carrierNow = gameDayMgr.IsBallCarrierSpawningThisFrame();
 
+    if (!gameDayMgr.InDefenseRound)
+    {
+    if (offenseKickstartTimer > 0f)
+    {
+        offenseKickstartTimer -= Time.deltaTime;
+        // During kickstart, ignore pause flags
+    }
+    else
+    {
+        if (paused || carrierNow) return;
+    }
+    }
+
+    // Wave cadence
     if (waveSpawnCooldown > 0f)
     {
         waveSpawnCooldown -= Time.deltaTime;
@@ -174,6 +225,7 @@ private readonly List<GameObject> activeGoalPosts = new();
     {
         timer = 0f;
 
+        // Your existing “helmet every ~5 waves” logic
         if (wavesSinceLastHelmet >= 5 && Random.value < 0.5f)
         {
             SpawnGameDayHelmet();
@@ -181,13 +233,12 @@ private readonly List<GameObject> activeGoalPosts = new();
         }
         else
         {
-            SpawnGameDayWave(gameDayMgr.InDefenseRound);
+            // OFFENSE: spawn multi-bird wave
+            SpawnGameDayWave(false);
             wavesSinceLastHelmet++;
         }
     }
 }
-
-
 
     private void SpawnGameDayBall()
     {
@@ -406,6 +457,16 @@ private readonly List<GameObject> activeGoalPosts = new();
     goalPostTimer = 0f;
     goalPostsThisDrive = 0;
     prevInDefenseRound = true;
+    
+    var gdm = FindObjectOfType<GameDayManager>();
+    prevInDefenseRound = gdm != null ? gdm.InDefenseRound : false;
+
+    defenseCarrierSpawned = false;
+    defenseTimer = 0f;
+
+    offenseKickstartTimer = 0f; // also reset the kickstart
+    activeGoalPosts.Clear();
+
 
     activeGoalPosts.Clear();
 }

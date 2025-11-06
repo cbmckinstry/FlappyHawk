@@ -2103,6 +2103,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameDayManager
   modeText: {fileID: 343688574}
+  playerScoreText: {fileID: 603566214}
+  enemyScoreText: {fileID: 1259758923}
   goalPostSpawnX: 0
   defenseRoundDuration: 10
 --- !u!1 &1139996080
@@ -2158,6 +2160,10 @@ MonoBehaviour:
   tornadoWeight: 0.2
   cornKernelWeight: 0.8
   helmetWeight: 0.2
+  defenseCarrierDelay: 3
+  goalPostSpawnRate: 10
+  maxGoalPostsPerDrive: 4
+  offenseKickstartSeconds: 1.5
 --- !u!4 &1139996082
 Transform:
   m_ObjectHideFlags: 0
@@ -2800,7 +2806,7 @@ GameObject:
   - component: {fileID: 1729684128}
   m_Layer: 0
   m_Name: Ground
-  m_TagString: Obstacle
+  m_TagString: Ground
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
