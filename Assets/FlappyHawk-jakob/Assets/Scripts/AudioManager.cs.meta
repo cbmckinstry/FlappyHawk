@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: fccdcea4429deca48838c1d4a42a4e18
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - sfxSource: {instanceID: 0}
+  - musicSource: {instanceID: 0}
+  - clickSound: {fileID: 8300000, guid: 37c0c132200ca6642b1a6a22fb5affa3, type: 3}
+  - menuMusic: {fileID: 8300000, guid: 852d15dd45a48764b86304fb95d75542, type: 3}
+  - gameMusic: {fileID: 8300000, guid: 852d15dd45a48764b86304fb95d75542, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

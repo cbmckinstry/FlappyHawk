@@ -1,5 +1,8 @@
 using UnityEngine;
 
+/// <summary>
+/// Generic obstacle base class for all obstacle types (Pipes, Balloons, Silos, Turbines)
+/// </summary>
 public class Pipes : MonoBehaviour
 {
     public float pipeSpeed = 4.5f;
@@ -27,6 +30,11 @@ public class Pipes : MonoBehaviour
 
     private void Start()
     {
+        if (Camera.main == null)
+        {
+            Debug.LogError("No Main Camera found in scene!");
+            return;
+        }
         leftEdge = Camera.main.ScreenToWorldPoint(Vector3.zero).x - 1f;
     }
 
@@ -35,5 +43,13 @@ public class Pipes : MonoBehaviour
         transform.position += Vector3.left * pipeSpeed * Time.deltaTime;
         if (transform.position.x < leftEdge)
             Destroy(gameObject);
+    }
+
+    /// <summary>
+    /// Gets the current speed of the obstacle (for subclasses)
+    /// </summary>
+    public float GetSpeed()
+    {
+        return pipeSpeed;
     }
 }
