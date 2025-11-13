@@ -1,17 +1,35 @@
 using UnityEngine;
 
-/// <summary>
-/// Silo obstacle - inherits from Pipes for movement behavior
-/// Can be extended with specific silo behaviors (e.g., collapsing animation, etc.)
-/// </summary>
-public class Silo : Pipes
+public class Silo : MonoBehaviour
 {
-    // Additional silo-specific behavior can be added here
-    // For example: state changes, explosions, damage zones, etc.
+    public float moveSpeed = 4.5f;
+    [SerializeField] private float destroyOffset = 2.5f;
+    private float leftEdge;
 
-    private void Awake()
+    private void OnEnable()
     {
-        // Ensure the tag is set correctly for collision detection
+        moveSpeed = GameManager.CurrentScrollSpeed;
+        GameManager.OnScrollSpeedChanged += OnSpeedChanged;
+    }
+
+    private void OnDisable()
+    {
+        GameManager.OnScrollSpeedChanged -= OnSpeedChanged;
+    }
+
+    private void OnSpeedChanged(float s) => moveSpeed = s;
+
+    private void Start()
+    {
         gameObject.tag = "Obstacle";
+        if (Camera.main == null) return;
+        leftEdge = Camera.main.ScreenToWorldPoint(Vector3.zero).x - destroyOffset;
+    }
+
+    private void Update()
+    {
+        transform.position += Vector3.left * moveSpeed * Time.deltaTime;
+        if (transform.position.x < leftEdge)
+            Destroy(gameObject);
     }
 }

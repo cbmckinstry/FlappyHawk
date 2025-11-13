@@ -6,7 +6,10 @@ TagManager:
   tags:
   - Obstacle
   - Scoring
+  - Undefined
+  - Ground
   - Collectible
+  - GoalPost
   layers:
   - Default
   - TransparentFX

@@ -8,15 +8,16 @@ public class Helmet : MonoBehaviour, ICollectible
 
     private void OnEnable()
     {
-        // Subscribe to pipe speed changes for consistency
-        var gm = FindObjectOfType<GameManager>();
-        if (gm != null) moveSpeed = gm.CurrentPipeSpeed;
-        GameManager.OnPipeSpeedChanged += HandleSpeedChanged;
+        // Sync with global scroll speed
+        moveSpeed = GameManager.CurrentScrollSpeed;
+
+        // Subscribe for updates when scroll speed changes
+        GameManager.OnScrollSpeedChanged += HandleSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandleSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandleSpeedChanged;
     }
 
     private void HandleSpeedChanged(float newSpeed)
@@ -31,15 +32,16 @@ public class Helmet : MonoBehaviour, ICollectible
             Debug.LogError("No Main Camera found in scene!");
             return;
         }
+
         leftEdge = Camera.main.ScreenToWorldPoint(Vector3.zero).x - 1f;
     }
 
     private void Update()
     {
-        // Move left with the game
+        // Move left with the global scroll speed
         transform.position += Vector3.left * moveSpeed * Time.deltaTime;
-        
-        // Destroy when off screen
+
+        // Destroy when off-screen
         if (transform.position.x < leftEdge)
             Destroy(gameObject);
     }

@@ -8,15 +8,16 @@ public class CornKernel : MonoBehaviour, ICollectible
 
     private void OnEnable()
     {
-        // Subscribe to pipe speed changes for consistency
-        var gm = FindObjectOfType<GameManager>();
-        if (gm != null) moveSpeed = gm.CurrentPipeSpeed;
-        GameManager.OnPipeSpeedChanged += HandleSpeedChanged;
+        // Sync with global scroll speed
+        moveSpeed = GameManager.CurrentScrollSpeed;
+
+        // Subscribe to scroll speed changes for consistency
+        GameManager.OnScrollSpeedChanged += HandleSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandleSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandleSpeedChanged;
     }
 
     private void HandleSpeedChanged(float newSpeed)
@@ -31,6 +32,7 @@ public class CornKernel : MonoBehaviour, ICollectible
             Debug.LogError("No Main Camera found in scene!");
             return;
         }
+
         leftEdge = Camera.main.ScreenToWorldPoint(Vector3.zero).x - 1f;
     }
 
@@ -38,7 +40,7 @@ public class CornKernel : MonoBehaviour, ICollectible
     {
         // Move left with the game
         transform.position += Vector3.left * moveSpeed * Time.deltaTime;
-        
+
         // Destroy when off screen
         if (transform.position.x < leftEdge)
             Destroy(gameObject);
@@ -46,6 +48,12 @@ public class CornKernel : MonoBehaviour, ICollectible
 
     public void Collect(Player player)
     {
-        FindObjectOfType<GameManager>().IncreaseScore(pointsValue);
+        AudioManager.Instance?.PlayCornCollect();
+
+        // Award points through global GameManager
+        if (GameManager.IowaInstance != null)
+            GameManager.IowaInstance.IncreaseScore(pointsValue);
+        else if (GameManager.GameDayInstance != null)
+            GameManager.GameDayInstance.IncreaseScore(pointsValue);
     }
 }

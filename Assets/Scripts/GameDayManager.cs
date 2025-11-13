@@ -1,319 +1,366 @@
-using UnityEngine;
-using TMPro;
 using System;
+using TMPro;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using System.Collections;
 
 public class GameDayManager : MonoBehaviour
 {
     public static GameDayManager Instance { get; private set; }
 
-    [Header("Spawn Settings")]
+    [Header("Scene References")]
+    public Player player;
+    public GameObject playButton;
+    public GameObject gameOver;
+    public GameObject readyButton;
+    public GameObject menuButton;
+    public Image difficultyImage;
+    public Sprite collegeSprite;
+    public Sprite proSprite;
+
+    // UI (internal labels)
+    [SerializeField] private TextMeshProUGUI modeText;
+    [SerializeField] private TextMeshProUGUI playerScoreText;
+    [SerializeField] private TextMeshProUGUI enemyScoreText;
+
+    [Header("Tuning")]
+    [SerializeField] private float scrollSpeed = 5f;
+    [SerializeField] private float collegeSpawnRate = 1.10f;
+    [SerializeField] private float proSpawnRate = 0.90f;
+
+    [Header("GameDay Settings")]
     public float goalPostSpawnX = 12f;
+    public float defenseRoundDuration = 10f;
 
-    [Header("UI")]
-    public TextMeshProUGUI modeText; // Text to display Offense/Defense mode
+    // Difficulty + events
+    public GameManager.GameDayDifficulty CurrentGameDayDifficulty { get; private set; } =
+        GameManager.GameDayDifficulty.College;
 
+    public static event Action<float> OnScrollSpeedChanged;
+    public static event Action<float> OnSpawnRateChanged;
+
+    public float CurrentScrollSpeed { get; private set; } = 5f;
+    public float CurrentSpawnRate { get; private set; } = 1.2f;
+
+    // Round/score state
     private bool inDefenseRound = false;
-    private bool playerHasFootball = false;
-    private int wavesCompletedForCurrentGoal = 0;
-    private int wavesBetweenGoals = 10; // Always 10 waves
-    private Spawner spawner;
-    private float defenseRoundTimeout = 10f;
-    private float defenseRoundTimer = 0f;
-    private bool ballCarrierActive = false;
     private bool isSpawningPaused = false;
-    private bool ballCarrierSpawnedThisDefense = false;
-    private float ballCarrierSpawnDelay = 10f; // Spawn ball carrier after 10 seconds
-    private float defenseStartTime = 0f;
+    private bool ballCarrierSpawning = false;
+    public bool InDefenseRound => inDefenseRound;
 
+    private Spawner spawner;
+    private int playerScore = 0;
+    private int enemyScore = 0;
+
+    private DateTime roundStartUtc;
+    private float roundElapsed;
+    private int obstaclesSpawned;
+    private int jumps;
+
+
+    // -------------------- Unity Lifecycle --------------------
     private void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        if (Instance == null) Instance = this;
+        else { Destroy(gameObject); return; }
+
+        // Load saved difficulty if available
+        if (PlayerPrefs.HasKey("GameDayDifficulty"))
+            CurrentGameDayDifficulty = (GameManager.GameDayDifficulty)PlayerPrefs.GetInt("GameDayDifficulty");
+
+        gameOver?.SetActive(false);
+        Pause();
     }
 
     private void OnEnable()
     {
         spawner = FindObjectOfType<Spawner>();
         UpdateModeDisplay();
+
+        // <<< Force a true reset on load >>>
+        ResetScores();                  // sets both scores = 0 and updates UI
     }
 
     private void Start()
     {
-        // Waves are always 10 for both offense and defense
+        SelectPlayButton();
+    }
+
+    private void Update()
+    {
         UpdateModeDisplay();
     }
 
+    // -------------------- UI Helpers --------------------
     private void UpdateModeDisplay()
     {
         if (modeText != null)
         {
             modeText.text = inDefenseRound ? "DEFENSE" : "OFFENSE";
-            modeText.gameObject.SetActive(true);
+            if (!modeText.gameObject.activeSelf) modeText.gameObject.SetActive(true);
         }
     }
 
-    private void Update()
+    private void SetPlayerScoreUI(int value)
     {
-        if (inDefenseRound)
+        if (playerScoreText != null)
         {
-            defenseRoundTimer -= Time.deltaTime;
-            
-            // Spawn ball carrier after 10 seconds of defense round
-            float elapsedTime = defenseRoundTimeout - defenseRoundTimer;
-            if (!ballCarrierSpawnedThisDefense && elapsedTime >= ballCarrierSpawnDelay)
-            {
-                SpawnBallCarrierAfterDelay();
-                ballCarrierSpawnedThisDefense = true;
-            }
-            
-            // Defense round continues until ball carrier is either hit or despawns
-            // No automatic time limit
+            playerScoreText.text = value.ToString();
+            if (!playerScoreText.gameObject.activeSelf) playerScoreText.gameObject.SetActive(true);
         }
-
-        // Check if player is carrying football
-        Football football = FindObjectOfType<Football>();
-        bool wasCarrying = playerHasFootball;
-        playerHasFootball = (football != null && football.IsCarried());
-        
-        if (football != null && playerHasFootball != wasCarrying)
-        {
-            Debug.Log($"[GameDayManager] Football carry state changed to: {playerHasFootball}");
-        }
-
-        // Check if we should spawn a goal post
-        CheckAndSpawnGoalPost();
     }
 
-    private void CheckAndSpawnGoalPost()
+    private void SetEnemyScoreUI(int value)
     {
-        if (inDefenseRound)
-            return;
+        if (enemyScoreText == null)
+            enemyScoreText = FindObjectOfType<TextMeshProUGUI>(true); // or Find by name/tag you use
 
-        // Log goal post spawn attempt info
-        if (playerHasFootball && wavesCompletedForCurrentGoal > 0)
+        if (enemyScoreText != null)
         {
-            Debug.Log($"[GameDayManager] Waves completed: {wavesCompletedForCurrentGoal}/{wavesBetweenGoals}, PlayerHasFootball: {playerHasFootball}");
+            enemyScoreText.text = value.ToString();
+            if (!enemyScoreText.gameObject.activeSelf) enemyScoreText.gameObject.SetActive(true);
         }
     }
 
-    public void ResetGameDayRound()
-    {
-        inDefenseRound = false;
-        playerHasFootball = false;
-        wavesCompletedForCurrentGoal = 0;
-        wavesBetweenGoals = 10; // Always 10 waves
-        defenseRoundTimer = 0f;
-        ballCarrierActive = false;
-        ballCarrierSpawnedThisDefense = false;
-        
-        // Reset ball spawning for next offense round
-        if (spawner != null)
-        {
-            spawner.ResetGameDayBall();
-        }
-    }
 
+    // -------------------- Queries (used by Spawner/etc.) --------------------
+    public bool IsInDefenseRound() => inDefenseRound;
+    public bool IsBallCarrierSpawningThisFrame() => ballCarrierSpawning;
+    public bool IsSpawningPaused() => isSpawningPaused;
+
+    // -------------------- Flow Control --------------------
     public void StartDefenseRound()
     {
-        inDefenseRound = true;
-        defenseRoundTimer = defenseRoundTimeout;
-        ballCarrierActive = false;
-        ballCarrierSpawnedThisDefense = false;
-        UpdateModeDisplay();
+        if (inDefenseRound) return;
 
-        Debug.Log("Defense round started!");
+        Debug.Log("[GameDayManager] Starting Defense Round...");
+        inDefenseRound = true;
+        isSpawningPaused = false;   // allow spawner to run prep logic if needed
+        StartCoroutine(DefenseRoundTimer());
     }
 
     public void EndDefenseRound(bool playerWon)
     {
+        Debug.Log($"[GameDayManager] Defense round ended. Player won? {playerWon}");
+
+        // Clear defense flags
         inDefenseRound = false;
-        defenseRoundTimer = 2f;
+        ballCarrierSpawning = false;
+        isSpawningPaused = false;
 
-        if (playerWon)
+        // Centralize enemy scoring for defense failure HERE
+        if (!playerWon)
         {
-            Debug.Log("Player won defense round! Offense continues.");
-            // Reset wave counter for next goal
-            wavesCompletedForCurrentGoal = 0;
-            
-            // Use coroutine for smooth transition
-            StartCoroutine(TransitionToOffenseMode());
+            int pointsScored = Random.value < 0.7f ? 3 : 7;
+            enemyScore += pointsScored;
+            SetEnemyScoreUI(enemyScore);
+            Debug.Log($"[GameDayManager] Opponent scored {pointsScored}. Opponent total: {enemyScore}");
         }
-        else
-        {
-            // Pause spawning during transition
-            isSpawningPaused = true;
-            
-            // Opponent scores
-            bool isHighScore = UnityEngine.Random.value < 0.3f; // 30% chance for 7 points
-            int opponentPoints = isHighScore ? 7 : 3;
-            
-            FindObjectOfType<GameManager>().IncreaseOpponentScore(opponentPoints);
-            Debug.Log("Opponent scored " + opponentPoints + " points!");
 
-            // Reset wave counter for next goal
-            wavesCompletedForCurrentGoal = 0;
-            
-            UpdateModeDisplay();
-            
-            // Resume spawning and swap back to normal round (offense)
-            Debug.Log("Returning to normal round...");
-            isSpawningPaused = false;
-            ResetGameDayRound();
-        }
+        // Reset offense drive state for next wave/ball
+        if (spawner != null)
+            spawner.ResetGameDayBall();
     }
 
-    private IEnumerator TransitionToOffenseMode()
+    private IEnumerator DefenseRoundTimer()
     {
-        // Pause spawning during transition
-        isSpawningPaused = true;
-        
-        // Pause for a moment
-        yield return new WaitForSeconds(2f);
-        
-        // Update mode text to show OFFENSE
-        UpdateModeDisplay();
-        
-        // Pause again before resuming spawning
-        yield return new WaitForSeconds(2f);
-        
-        // Resume spawning BEFORE resetting so ball can spawn
-        isSpawningPaused = false;
-        
-        // Reset to offense mode - ball will spawn in next frame
-        ResetGameDayRound();
+        yield return new WaitForSeconds(defenseRoundDuration);
+
+        if (inDefenseRound)
+        {
+            Debug.Log("[GameDayManager] Defense round timed out!");
+            EndDefenseRound(false); // counts as enemy point
+        }
     }
 
     public void OnBallCarrierSpawned()
     {
-        ballCarrierActive = true;
+        Debug.Log("[GameDayManager] Ball carrier spawned!");
+        ballCarrierSpawning = true;
+        isSpawningPaused = true; // pause regular spawns while the carrier is active
     }
 
     public void OnBallCarrierDespawned()
     {
-        // Ball carrier despawned without being hit = opponent scores
-        if (ballCarrierActive && inDefenseRound)
-        {
-            Debug.Log("[GameDayManager] Ball carrier despawned! Opponent scores!");
-            EndDefenseRound(false);
-        }
-        ballCarrierActive = false;
+        // Do NOT score here to avoid double-count. Funnel to EndDefenseRound(false).
+        Debug.Log("[GameDayManager] Ball carrier despawned — defense failed.");
+        EndDefenseRound(false);
     }
 
     public void OnWaveCompleted()
     {
-        if (inDefenseRound)
-            return;
-
-        wavesCompletedForCurrentGoal++;
-        Debug.Log($"[GameDayManager] Wave completed! Total: {wavesCompletedForCurrentGoal}/{wavesBetweenGoals}, PlayerHasFootball: {playerHasFootball}");
-
-        // Check if we should spawn a goal post
-        if (wavesCompletedForCurrentGoal >= wavesBetweenGoals && playerHasFootball)
-        {
-            Debug.Log("[GameDayManager] Conditions met! Spawning goal post...");
-            SpawnGoalPost();
-            wavesCompletedForCurrentGoal = 0;
-            wavesBetweenGoals = UnityEngine.Random.Range(3, 6);
-        }
-        else if (wavesCompletedForCurrentGoal >= wavesBetweenGoals && !playerHasFootball)
-        {
-            Debug.Log("[GameDayManager] Wave requirement met but player doesn't have football yet!");
-        }
+        Debug.Log("[GameDayManager] Wave completed!");
     }
 
-    private void SpawnGoalPost()
+    // -------------------- Scoring API --------------------
+    /// <summary>
+    /// Enemy scoring (turnovers, defense failures, etc.)
+    /// </summary>
+    public void IncreaseOpponentScore(int amount = 1)
     {
-        if (spawner == null)
-        {
-            Debug.LogWarning("[GameDayManager] Spawner not found!");
-            return;
-        }
-
-        GameObject goalPostPrefab = null;
-        GameManager gm = FindObjectOfType<GameManager>();
-
-        if (gm != null && gm.CurrentGameDayDifficulty == GameDayDifficulty.College)
-        {
-            goalPostPrefab = spawner.goalPostEasyPrefab;
-            Debug.Log("[GameDayManager] Using College (Easy) goal post");
-        }
-        else if (gm != null && gm.CurrentGameDayDifficulty == GameDayDifficulty.Pro)
-        {
-            goalPostPrefab = spawner.goalPostProPrefab;
-            Debug.Log("[GameDayManager] Using Pro goal post");
-        }
-
-        if (goalPostPrefab == null)
-        {
-            Debug.LogWarning("[GameDayManager] Goal post prefab not assigned in Spawner!");
-            return;
-        }
-
-        float randomY = UnityEngine.Random.Range(-1f, 2f);
-        Vector3 spawnPos = new Vector3(goalPostSpawnX, randomY, 0f);
-
-        Instantiate(goalPostPrefab, spawnPos, Quaternion.identity);
-        Debug.Log($"[GameDayManager] Goal post spawned at {spawnPos}!");
+        if (amount <= 0) return;
+        enemyScore += amount;
+        SetEnemyScoreUI(enemyScore);
+        Debug.Log($"[GameDayManager] Opponent scored {amount}. Enemy total: {enemyScore}");
     }
 
-    public bool IsInDefenseRound()
+    /// <summary>
+    /// Player scoring. Kept name to match existing calls in Spawner/Football.
+    /// </summary>
+    public void IncreaseScore(int amount = 1)
     {
-        return inDefenseRound;
+        if (amount <= 0) return;
+        playerScore += amount;
+        SetPlayerScoreUI(playerScore);
+        Debug.Log($"[GameDayManager] Player scored {amount}. Player total: {playerScore}");
+
+        // Play different sounds depending on score type
+        if (amount == 7)
+            AudioManager.Instance?.PlayTouchdown();
+        else if (amount == 3)
+            AudioManager.Instance?.PlayFieldGoal();
+
     }
 
-    public bool IsPlayerCarryingFootball()
+    /// <summary>
+    /// Reset only the numeric scores and update UI (does not touch round flags).
+    /// </summary>
+    public void ResetScores()
     {
-        return playerHasFootball;
+        playerScore = 0;
+        enemyScore = 0;
+        SetPlayerScoreUI(playerScore);
+        SetEnemyScoreUI(enemyScore);
     }
 
-    public bool IsSpawningPaused()
+    /// <summary>
+    /// Call this when the player dies (from GameManager or Player).
+    /// Fully resets scores and spawner/round flags so the next life starts clean.
+    /// </summary>
+    public void OnPlayerDeathReset()
     {
-        return isSpawningPaused;
-    }
+        // Reset scores
+        ResetScores();
 
-    public bool IsBallCarrierSpawningThisFrame()
-    {
-        // Check if ball carrier is about to spawn right now
-        if (inDefenseRound && !ballCarrierSpawnedThisDefense)
-        {
-            float elapsedTime = defenseRoundTimeout - defenseRoundTimer;
-            return elapsedTime >= ballCarrierSpawnDelay && elapsedTime < (ballCarrierSpawnDelay + Time.deltaTime + 0.1f);
-        }
-        return false;
-    }
-
-    public void ResetGameDayOnGameOver()
-    {
-        // Reset all Game Day state when game ends
+        // Clear round/spawn flags
         inDefenseRound = false;
-        playerHasFootball = false;
-        wavesCompletedForCurrentGoal = 0;
-        wavesBetweenGoals = 10;
-        defenseRoundTimer = 0f;
-        ballCarrierActive = false;
-        ballCarrierSpawnedThisDefense = false;
+        ballCarrierSpawning = false;
         isSpawningPaused = false;
-        
-        UpdateModeDisplay(); // This will show "OFFENSE" since inDefenseRound is false
-        Debug.Log("[GameDayManager] Game Day state reset to Offense mode");
+
+        // Reset spawner fully so offense can start again
+        if (spawner != null)
+            spawner.ResetSpawner();
     }
 
-    private void SpawnBallCarrierAfterDelay()
+    // -------------------- Difficulty --------------------
+    public void SetGameDayDifficulty(GameManager.GameDayDifficulty diff)
     {
-        if (spawner == null)
+        CurrentGameDayDifficulty = diff;
+        PlayerPrefs.SetInt("GameDayDifficulty", (int)diff);
+        PlayerPrefs.Save();
+    }
+
+    // -------------------- Optional broadcasters (if you ever change speeds) --------------------
+    public void SetScrollSpeed(float speed)
+    {
+        CurrentScrollSpeed = Mathf.Max(0f, speed);
+        OnScrollSpeedChanged?.Invoke(CurrentScrollSpeed);
+    }
+
+    public void SetSpawnRate(float rate)
+    {
+        CurrentSpawnRate = Mathf.Max(0.05f, rate);
+        OnSpawnRateChanged?.Invoke(CurrentSpawnRate);
+    }
+
+    public bool IsGameActive()
+    {
+        // If you ever add a pause menu, this will correctly detect it.
+        return !isSpawningPaused || inDefenseRound;
+    }
+
+
+    // =========================================================
+    // ==========  NEW METHODS FOR STANDALONE GAMEDAY ==========
+    // =========================================================
+
+    private void ApplyDifficulty()
+    {
+        float spawnRate;
+        Sprite spriteToUse;
+
+        switch (CurrentGameDayDifficulty)
         {
-            Debug.LogWarning("[GameDayManager] Spawner not found!");
-            return;
+            case GameManager.GameDayDifficulty.Pro:
+                spawnRate = proSpawnRate;
+                spriteToUse = proSprite;
+                break;
+            default:
+                spawnRate = collegeSpawnRate;
+                spriteToUse = collegeSprite;
+                break;
         }
 
-        spawner.SpawnBallCarrierAtScreenCenter();
-        Debug.Log("[GameDayManager] Ball carrier spawned after 10 seconds of defense!");
+        CurrentScrollSpeed = scrollSpeed;
+        CurrentSpawnRate = spawnRate;
+        OnScrollSpeedChanged?.Invoke(scrollSpeed);
+        OnSpawnRateChanged?.Invoke(spawnRate);
+
+        if (difficultyImage != null)
+            difficultyImage.sprite = spriteToUse;
+    }
+
+    public void Play()
+    {
+        player.enabled = true;
+        playButton?.SetActive(false);
+        gameOver?.SetActive(false);
+        readyButton?.SetActive(false);
+        menuButton?.SetActive(false);
+        difficultyImage?.gameObject.SetActive(false);
+
+        Time.timeScale = 1f;
+
+        ResetScores();
+        OnPlayerDeathReset();
+
+        ApplyDifficulty();
+    }
+
+    public void GameOver()
+    {
+        gameOver?.SetActive(true);
+        playButton?.SetActive(true);
+        readyButton?.SetActive(false);
+        difficultyImage?.gameObject.SetActive(true);
+        menuButton?.SetActive(true);
+
+        Pause();
+        SelectPlayButton();
+    }
+
+    private void SelectPlayButton()
+    {
+        Button button = playButton?.GetComponent<Button>();
+        if (button != null)
+        {
+            EventSystem.current?.SetSelectedGameObject(button.gameObject);
+        }
+    }
+
+    public void Pause()
+    {
+        Time.timeScale = 0f;
+        player.enabled = false;
+    }
+
+    public void ReturnToMainMenu()
+    {
+        AudioManager.Instance?.PlayClickSound();
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("MenuScreen");
     }
 }

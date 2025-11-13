@@ -1,21 +1,21 @@
 using UnityEngine;
 
 /// <summary>
-/// EnemyBallCarrier - An enemy that carries the ball during defense rounds
-/// Player must collide with this enemy to begin the offense round again
+/// EnemyBallCarrier - An enemy that carries the ball during defense rounds.
+/// Player must collide with this enemy to begin the offense round again.
 /// </summary>
 public class EnemyBallCarrier : MonoBehaviour
 {
-    public float pipeSpeed = 4.5f;
-    
+    public float scrollSpeed = 4.5f;
+
     [Header("Flight Pattern")]
     [SerializeField] private float bobAmplitude = 0.5f;
     [SerializeField] private float bobFrequency = 2f;
-    
+
     [Header("Animation")]
     [SerializeField] private Sprite[] flapSprites;
     [SerializeField] private float flapSpeed = 0.1f;
-    
+
     private float leftEdge;
     private float startYPosition;
     private float bobTimer = 0f;
@@ -26,54 +26,53 @@ public class EnemyBallCarrier : MonoBehaviour
 
     private void OnEnable()
     {
-        // Set speed to whatever GameManager currently uses
-        var gm = FindObjectOfType<GameManager>();
-        if (gm != null) pipeSpeed = gm.CurrentPipeSpeed;
+        // Use static bridge for current scroll speed
+        scrollSpeed = GameManager.CurrentScrollSpeed;
 
-        // Subscribe to future difficulty changes
-        GameManager.OnPipeSpeedChanged += HandlePipeSpeedChanged;
+        // Subscribe to difficulty/speed changes
+        GameManager.OnScrollSpeedChanged += HandlescrollSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandlePipeSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandlescrollSpeedChanged;
     }
 
-    private void HandlePipeSpeedChanged(float newSpeed)
+    private void HandlescrollSpeedChanged(float newSpeed)
     {
-        pipeSpeed = newSpeed;
+        scrollSpeed = newSpeed;
     }
 
     private void Start()
     {
-        // Mark as a ball carrier so player can interact with it to end defense
         gameObject.tag = "BallCarrier";
-        
+
         if (Camera.main == null)
         {
             Debug.LogError("No Main Camera found in scene!");
             return;
         }
-        
+
         leftEdge = Camera.main.ScreenToWorldPoint(Vector3.zero).x - 1f;
         startYPosition = transform.position.y;
-        
+
         spriteRenderer = GetComponent<SpriteRenderer>();
         if (spriteRenderer == null)
-        {
             spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
-        }
-        
+
         if (flapSprites == null || flapSprites.Length == 0)
-        {
             Debug.LogWarning("EnemyBallCarrier has no flap sprites assigned!");
-        }
     }
 
     private void Update()
     {
         // Move left with the game
-        transform.position += Vector3.left * pipeSpeed * Time.deltaTime;
+        transform.position += Vector3.left * scrollSpeed * Time.deltaTime;
+
+        // Optional bobbing motion
+        bobTimer += Time.deltaTime * bobFrequency;
+        float bobOffset = Mathf.Sin(bobTimer) * bobAmplitude;
+        transform.position = new Vector3(transform.position.x, startYPosition + bobOffset, transform.position.z);
 
         // Update flapping animation
         UpdateFlapAnimation();
@@ -89,7 +88,7 @@ public class EnemyBallCarrier : MonoBehaviour
             return;
 
         flapTimer += Time.deltaTime;
-        
+
         if (flapTimer >= flapSpeed)
         {
             flapTimer = 0f;
@@ -112,14 +111,13 @@ public class EnemyBallCarrier : MonoBehaviour
 
     private void EndDefenseRound()
     {
-        // Notify GameDayManager that defense round ended successfully
-        GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
+        // Notify the GameDayManager that the player won defense
+        var gameDayMgr = GameManager.GameDayInstance;
         if (gameDayMgr != null)
         {
-            gameDayMgr.EndDefenseRound(true); // true = player won defense
+            gameDayMgr.EndDefenseRound(true);
         }
-        
-        // Destroy this enemy
+
         Destroy(gameObject);
     }
 }

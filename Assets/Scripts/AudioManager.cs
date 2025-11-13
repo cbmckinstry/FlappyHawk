@@ -1,83 +1,188 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class AudioManager : MonoBehaviour
 {
-    [Header("Audio Sources")]
+    public static AudioManager Instance { get; private set; }
+
+    [Header("Audio Sources (Persistent)")]
+    [Tooltip("A dedicated AudioSource for SFX. Set to 'Spatial Blend: 0' (2D).")]
     public AudioSource sfxSource;
+
+    [Tooltip("A dedicated AudioSource for background music. Set to 'Loop: true'.")]
     public AudioSource musicSource;
 
-    [Header("Audio Clips")]
-    public AudioClip clickSound;
+    [Header("Music Clips")]
     public AudioClip menuMusic;
+    public AudioClip iowaMusic;
+    public AudioClip gameDayMusic;
 
-    [Header("Volume Settings (0–10 Scale)")]
-    public float masterVolume = 5f;
-    public float sfxVolume = 5f;
-    public float musicVolume = 5f;
+    [Header("SFX Clips")]
+    public AudioClip clickSfx;
+    public AudioClip cornCollectSfx;
+    public AudioClip dieSfx;
+    public AudioClip fieldGoalScoreSfx;
+    public AudioClip touchdownScoreSfx;
+    public AudioClip tackleSfx;
+    public AudioClip wingFlapSfx;
 
-    private void Start()
+    [Header("Volume (0–10) Defaults")]
+    [Range(0f, 10f)] public float masterVolume = 10f;
+    [Range(0f, 10f)] public float sfxVolume = 10f;
+    [Range(0f, 10f)] public float musicVolume = 2f;
+
+    // ————————————————— LIFECYCLE —————————————————
+    private void Awake()
     {
-        // Load saved settings (default to 5)
-        masterVolume = PlayerPrefs.GetFloat("MasterVolume", 5f);
-        sfxVolume = PlayerPrefs.GetFloat("SFXVolume", 5f);
-        musicVolume = PlayerPrefs.GetFloat("MusicVolume", 5f);
+        // Singleton pattern (persist across scenes)
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
 
+        // Load saved volumes
+        masterVolume = PlayerPrefs.GetFloat("MasterVolume", masterVolume);
+        sfxVolume = PlayerPrefs.GetFloat("SFXVolume", sfxVolume);
+        musicVolume = PlayerPrefs.GetFloat("MusicVolume", musicVolume);
         ApplyVolumes();
-        PlayBackgroundMusic();
+
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
-    private void PlayBackgroundMusic()
+    private void OnDestroy()
     {
-        if (musicSource != null && menuMusic != null)
+        if (Instance == this)
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    // ————————————————— SCENE → MUSIC —————————————————
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Scenes
+        var name = scene.name;
+
+        if (name == "MenuScreen")
         {
-            musicSource.clip = menuMusic;
-            musicSource.loop = true;
-            musicSource.Play();
+            PlayMusic(menuMusic);
+        }
+        else if (name == "IowaScene")
+        {
+            PlayMusic(iowaMusic);
+        }
+        else if (name == "GamedayScene")
+        {
+            PlayMusic(gameDayMusic);
+        }
+        else
+        {
+            // Fallback if you land on a utility scene
+            PlayMusic(menuMusic);
         }
     }
 
-    public void PlayClickSound()
+    /// <summary>
+    /// Optional: call this manually if you change modes without loading a new scene.
+    /// </summary>
+    public void SwitchMusicForMode(GameManager.GameMode mode)
     {
-        if (sfxSource != null && clickSound != null)
+        switch (mode)
         {
-            sfxSource.volume = (sfxVolume / 10f) * (masterVolume / 10f);
-            sfxSource.PlayOneShot(clickSound);
+            case GameManager.GameMode.Iowa:
+                PlayMusic(iowaMusic);
+                break;
+            case GameManager.GameMode.GameDay:
+                PlayMusic(gameDayMusic);
+                break;
+            default:
+                PlayMusic(menuMusic);
+                break;
         }
     }
 
-    private void ApplyVolumes()
+    // ————————————————— MUSIC CONTROL —————————————————
+    private void PlayMusic(AudioClip clip)
     {
-        float master = masterVolume / 10f;
-        float sfx = sfxVolume / 10f;
-        float music = musicVolume / 10f;
+        if (!musicSource || clip == null) return;
 
-        if (musicSource != null)
-            musicSource.volume = music * master;
+        if (musicSource.clip == clip && musicSource.isPlaying) return;
 
-        if (sfxSource != null)
-            sfxSource.volume = sfx * master;
+        musicSource.clip = clip;
+        musicSource.loop = true;
+        musicSource.Play();
+        ApplyVolumes(); // ensure volume is correct on new clip
     }
 
-    public void SetMasterVolume(float value)
+    public void StopMusic()
     {
-        masterVolume = value;
-        PlayerPrefs.SetFloat("MasterVolume", value);
+        if (musicSource) musicSource.Stop();
+    }
+
+    public void PauseMusic(bool pause)
+    {
+        if (!musicSource) return;
+        if (pause) musicSource.Pause();
+        else musicSource.UnPause();
+    }
+
+    // ————————————————— SFX HELPERS —————————————————
+    private void PlaySfx(AudioClip clip, float pitchJitter = 0f)
+    {
+        if (!sfxSource || clip == null) return;
+
+        // optional tiny pitch variation for “less robotic” feel
+        if (pitchJitter > 0f)
+        {
+            sfxSource.pitch = Random.Range(1f - pitchJitter, 1f + pitchJitter);
+        }
+        else
+        {
+            sfxSource.pitch = 1f;
+        }
+
+        sfxSource.PlayOneShot(clip, (sfxVolume / 10f) * (masterVolume / 10f));
+    }
+
+    public void PlayClickSound() => PlaySfx(clickSfx, 0.05f);
+    public void PlayCornCollect() => PlaySfx(cornCollectSfx, 0.03f);
+    public void PlayDie() => PlaySfx(dieSfx);
+    public void PlayTouchdown() => PlaySfx(touchdownScoreSfx);
+    public void PlayFieldGoal() => PlaySfx(fieldGoalScoreSfx);
+    public void PlayTackle() => PlaySfx(tackleSfx);
+    public void PlayWingFlap() => PlaySfx(wingFlapSfx, 0.06f);
+
+    // ————————————————— VOLUME —————————————————
+    public void ApplyVolumes()
+    {
+        float master = Mathf.Clamp01(masterVolume / 10f);
+        if (musicSource)
+            musicSource.volume = Mathf.Clamp01(musicVolume / 10f) * master;
+        if (sfxSource)
+            sfxSource.volume = Mathf.Clamp01(sfxVolume / 10f) * master;
+    }
+
+    public void SetMasterVolume(float v)
+    {
+        masterVolume = Mathf.Clamp(v, 0f, 10f);
+        PlayerPrefs.SetFloat("MasterVolume", masterVolume);
         PlayerPrefs.Save();
         ApplyVolumes();
     }
 
-    public void SetSFXVolume(float value)
+    public void SetSFXVolume(float v)
     {
-        sfxVolume = value;
-        PlayerPrefs.SetFloat("SFXVolume", value);
+        sfxVolume = Mathf.Clamp(v, 0f, 10f);
+        PlayerPrefs.SetFloat("SFXVolume", sfxVolume);
         PlayerPrefs.Save();
         ApplyVolumes();
     }
 
-    public void SetMusicVolume(float value)
+    public void SetMusicVolume(float v)
     {
-        musicVolume = value;
-        PlayerPrefs.SetFloat("MusicVolume", value);
+        musicVolume = Mathf.Clamp(v, 0f, 10f);
+        PlayerPrefs.SetFloat("MusicVolume", musicVolume);
         PlayerPrefs.Save();
         ApplyVolumes();
     }

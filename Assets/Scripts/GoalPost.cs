@@ -6,19 +6,19 @@ public class GoalPost : MonoBehaviour
     public float moveSpeed = 4.5f;
     private float leftEdge;
     private bool hasScored = false;
-    private Football ballInGoal;
 
     private void OnEnable()
     {
-        // Subscribe to pipe speed changes for consistency
-        var gm = FindObjectOfType<GameManager>();
-        if (gm != null) moveSpeed = gm.CurrentPipeSpeed;
-        GameManager.OnPipeSpeedChanged += HandleSpeedChanged;
+        // Set initial speed from global GameManager
+        moveSpeed = GameManager.CurrentScrollSpeed;
+
+        // Subscribe for updates when scroll speed changes
+        GameManager.OnScrollSpeedChanged += HandleSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandleSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandleSpeedChanged;
     }
 
     private void HandleSpeedChanged(float newSpeed)
@@ -33,16 +33,17 @@ public class GoalPost : MonoBehaviour
             Debug.LogError("No Main Camera found in scene!");
             return;
         }
+
         leftEdge = Camera.main.ScreenToWorldPoint(Vector3.zero).x - 1f;
-        // Don't tag as "Scoring" - handles its own scoring in Game Day mode
+        gameObject.tag = "GoalPost";
     }
 
     private void Update()
     {
-        // Move left with the game
+        // Move left with the rest of the scene
         transform.position += Vector3.left * moveSpeed * Time.deltaTime;
-        
-        // Destroy when off screen
+
+        // Destroy if off-screen
         if (transform.position.x < leftEdge)
             Destroy(gameObject);
     }
@@ -51,48 +52,42 @@ public class GoalPost : MonoBehaviour
     {
         if (hasScored) return;
 
-        // Check if player with football passes through
         Player player = other.GetComponent<Player>();
+        Football football = other.GetComponent<Football>();
+
+        // Case 1: Player passes through with football = 7 points
         if (player != null)
         {
-            // Find football and check if player is carrying it
-            Football football = FindObjectOfType<Football>();
-            if (football != null && football.IsCarried())
+            Football carriedBall = FindFirstObjectByType<Football>();
+            if (carriedBall != null && carriedBall.IsCarried())
             {
-                // Flying through goal post with football = 7 points
-                FindObjectOfType<GameManager>().IncreaseScore(7);
-                Destroy(football.gameObject);
+                GameManager.IncreaseScore(7);
+                Destroy(carriedBall.gameObject);
                 hasScored = true;
                 TriggerDefenseRound();
                 return;
             }
-            // Player without football doesn't score - just return
-            return;
         }
 
-        // Check if football is dropped into goal post
-        Football ball = other.GetComponent<Football>();
-        if (ball != null && !ball.IsCarried())
+        // Case 2: Dropped football goes through = 3 points
+        if (football != null && !football.IsCarried())
         {
-            // Dropped into goal post = 3 points
-            FindObjectOfType<GameManager>().IncreaseScore(3);
-            Destroy(ball.gameObject);
+            GameManager.IncreaseScore(3);
+            Destroy(football.gameObject);
             hasScored = true;
             TriggerDefenseRound();
-            return;
         }
     }
 
     private void TriggerDefenseRound()
     {
-        // Notify GameDayManager to start defense round
-        GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
+        GameDayManager gameDayMgr = FindFirstObjectByType<GameDayManager>();
         if (gameDayMgr != null)
         {
             gameDayMgr.StartDefenseRound();
         }
-        
-        // Despawn this goal post
+
+        // Slight delay before destroying for smoother transitions
         Invoke(nameof(DestroySelf), 0.1f);
     }
 

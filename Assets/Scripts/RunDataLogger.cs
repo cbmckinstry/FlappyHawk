@@ -1,4 +1,3 @@
-// RunDataLogger.cs
 using System;
 using System.Globalization;
 using System.IO;
@@ -9,23 +8,21 @@ public static class RunDataLogger
     private const string FileName = "game_runs.csv";
     private const string PlayerIdKey = "player_id";
 
-    // Customize your preferred desktop directory
+    // Save folder (Documents/FlappyHawk/Logs on desktop)
     private static readonly string PreferredDesktopDir =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "FlappyBird", "Logs");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "FlappyHawk", "Logs");
 
-    // Choose best path (Desktop-friendly on Windows/mac/Linux; fallback for mobile/WebGL/sandbox)
+    // Automatically choose best writable location
     private static string BestWritableDir
     {
         get
         {
 #if UNITY_STANDALONE || UNITY_EDITOR
-            // Try Documents/FlappyBird/Logs first
             if (TryEnsureWritable(PreferredDesktopDir))
                 return PreferredDesktopDir;
 #endif
-            // Fallback: always works and is cross-platform
             var fallback = Application.persistentDataPath;
-            TryEnsureWritable(fallback); // ensure it exists
+            TryEnsureWritable(fallback);
             return fallback;
         }
     }
@@ -45,25 +42,29 @@ public static class RunDataLogger
         }
     }
 
+    /// <summary>
+    /// Append a gameplay run entry to the log CSV file.
+    /// </summary>
     public static void AppendRun(
         string playerId,
-        Difficulty difficulty,
+        Difficulty difficulty,   // now uses global enum, not GameManager.Difficulty
         int score,
-        double roundSeconds,
+        float roundSeconds,
         DateTime startUtc,
-        int pipesSpawned = 0,
-        int jumps = 0
+        int pipesSpawned,
+        int jumps
     )
     {
         try
         {
             var newFile = !File.Exists(FilePath);
+
             using (var sw = new StreamWriter(FilePath, append: true))
             {
                 if (newFile)
                     sw.WriteLine("player_id,difficulty,score,round_seconds,start_utc,pipes_spawned,jumps");
 
-                var line = string.Join(",",
+                string line = string.Join(",",
                     Escape(playerId),
                     Escape(difficulty.ToString()),
                     score.ToString(CultureInfo.InvariantCulture),
@@ -72,6 +73,7 @@ public static class RunDataLogger
                     pipesSpawned.ToString(CultureInfo.InvariantCulture),
                     jumps.ToString(CultureInfo.InvariantCulture)
                 );
+
                 sw.WriteLine(line);
             }
 
@@ -95,7 +97,6 @@ public static class RunDataLogger
             if (string.IsNullOrEmpty(dir)) return false;
             Directory.CreateDirectory(dir);
 #if UNITY_STANDALONE || UNITY_EDITOR
-            // quick probe
             var probe = Path.Combine(dir, ".write_test.tmp");
             File.WriteAllText(probe, "ok");
             File.Delete(probe);
@@ -107,7 +108,7 @@ public static class RunDataLogger
 
     private static string Escape(string s)
     {
-        if (s == null) return "";
+        if (string.IsNullOrEmpty(s)) return "";
         if (s.Contains(",") || s.Contains("\"") || s.Contains("\n"))
             return $"\"{s.Replace("\"", "\"\"")}\"";
         return s;

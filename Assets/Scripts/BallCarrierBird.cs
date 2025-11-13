@@ -1,22 +1,22 @@
 using UnityEngine;
 
 /// <summary>
-/// BallCarrierBird - An enemy that carries the ball during defense rounds
-/// Player must collide with this enemy to win the defense round
-/// If this despawns without being hit, the opponent scores
+/// BallCarrierBird - Enemy that carries the ball during defense rounds.
+/// Player must collide with this enemy to win the defense round.
+/// If this despawns without being hit, the opponent scores.
 /// </summary>
 public class BallCarrierBird : MonoBehaviour
 {
-    public float pipeSpeed = 4.5f;
-    
+    public float scrollSpeed = 4.5f;
+
     [Header("Flight Pattern")]
-    [SerializeField] private float bobAmplitude = .5f;      // Noticeable bobbing for ball carrier
-    [SerializeField] private float bobFrequency = 1f;        // Speed of bobbing
-    
+    [SerializeField] private float bobAmplitude = 0.5f;     // Vertical bob amplitude
+    [SerializeField] private float bobFrequency = 1f;       // Speed of bobbing
+
     [Header("Animation")]
     [SerializeField] private Sprite[] flapSprites;
     [SerializeField] private float flapSpeed = 0.1f;
-    
+
     private float leftEdge;
     private float startYPosition;
     private float bobTimer = 0f;
@@ -27,95 +27,78 @@ public class BallCarrierBird : MonoBehaviour
 
     private void OnEnable()
     {
-        // Set speed to whatever GameManager currently uses
-        var gm = FindObjectOfType<GameManager>();
-        if (gm != null) pipeSpeed = gm.CurrentPipeSpeed;
+        // Sync with global scroll speed
+        scrollSpeed = GameManager.CurrentScrollSpeed;
 
-        // Subscribe to future difficulty changes
-        GameManager.OnPipeSpeedChanged += HandlePipeSpeedChanged;
+        // Subscribe to speed updates
+        GameManager.OnScrollSpeedChanged += HandlescrollSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandlePipeSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandlescrollSpeedChanged;
     }
 
-    private void HandlePipeSpeedChanged(float newSpeed)
+    private void HandlescrollSpeedChanged(float newSpeed)
     {
-        pipeSpeed = newSpeed;
+        scrollSpeed = newSpeed;
     }
 
     private void Start()
     {
-        // Mark as a ball carrier so player can interact with it to win defense
+        // Mark as ball carrier so Player can recognize it
         gameObject.tag = "BallCarrier";
-        
+
         if (Camera.main == null)
         {
             Debug.LogError("No Main Camera found in scene!");
             return;
         }
-        
+
         leftEdge = Camera.main.ScreenToWorldPoint(Vector3.zero).x - 1f;
         startYPosition = transform.position.y;
-        
+
         spriteRenderer = GetComponent<SpriteRenderer>();
         if (spriteRenderer == null)
-        {
             spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
-        }
-        
-        if (flapSprites == null || flapSprites.Length == 0)
-        {
-            Debug.LogWarning("BallCarrierBird has no flap sprites assigned!");
-        }
 
-        // Notify GameDayManager that ball carrier spawned
-        GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
-        if (gameDayMgr != null)
-        {
-            gameDayMgr.OnBallCarrierSpawned();
-        }
+        if (flapSprites == null || flapSprites.Length == 0)
+            Debug.LogWarning("BallCarrierBird has no flap sprites assigned!");
+
+        // Notify GameDayManager that a ball carrier spawned
+        GameManager.GameDayInstance?.OnBallCarrierSpawned();
     }
 
     private void Update()
     {
-        // Move left with the game
-        transform.position += Vector3.left * pipeSpeed * Time.deltaTime;
+        // Move left
+        transform.position += Vector3.left * scrollSpeed * Time.deltaTime;
 
-        // Apply subtle bobbing motion
+        // Bob up and down slightly
         UpdateBobbing();
 
-        // Update flapping animation
+        // Animate wings
         UpdateFlapAnimation();
 
-        // Destroy when off screen
+        // Despawn if off-screen
         if (transform.position.x < leftEdge)
         {
-            // Destroy all enemy birds when ball carrier escapes
-            CycloneBird[] cycloneBirds = FindObjectsOfType<CycloneBird>();
-            foreach (CycloneBird bird in cycloneBirds)
-            {
+            // Destroy all cyclone birds (reset screen)
+            foreach (var bird in FindObjectsByType<CycloneBird>(FindObjectsSortMode.None))
                 Destroy(bird.gameObject);
-            }
-            
-            // Notify GameDayManager that ball carrier despawned without being hit
-            GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
-            if (gameDayMgr != null)
-            {
-                gameDayMgr.OnBallCarrierDespawned();
-            }
-            
+
+            // Notify GameDayManager that it escaped (player loses defense)
+            GameManager.GameDayInstance?.OnBallCarrierDespawned();
+
             Destroy(gameObject);
         }
     }
 
     private void UpdateBobbing()
     {
-        // Subtle sinusoidal bobbing motion
         bobTimer += Time.deltaTime;
         float bobOffset = Mathf.Sin(bobTimer * bobFrequency * Mathf.PI) * bobAmplitude;
-        
+
         Vector3 pos = transform.position;
         pos.y = startYPosition + bobOffset;
         transform.position = pos;
@@ -127,7 +110,7 @@ public class BallCarrierBird : MonoBehaviour
             return;
 
         flapTimer += Time.deltaTime;
-        
+
         if (flapTimer >= flapSpeed)
         {
             flapTimer = 0f;
@@ -150,21 +133,13 @@ public class BallCarrierBird : MonoBehaviour
 
     private void OnHitByPlayer()
     {
-        // Destroy all enemy birds on screen
-        CycloneBird[] cycloneBirds = FindObjectsOfType<CycloneBird>();
-        foreach (CycloneBird bird in cycloneBirds)
-        {
+        // Destroy all cyclone birds in the scene
+        foreach (var bird in FindObjectsByType<CycloneBird>(FindObjectsSortMode.None))
             Destroy(bird.gameObject);
-        }
-        
-        // Notify GameDayManager that defense round ended successfully
-        GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
-        if (gameDayMgr != null)
-        {
-            gameDayMgr.EndDefenseRound(true); // true = player won defense
-        }
-        
-        // Destroy this enemy
+
+        // Notify GameDayManager that the defense round was won
+        GameManager.GameDayInstance?.EndDefenseRound(true);
+
         Destroy(gameObject);
     }
 }

@@ -8,7 +8,7 @@ public class Football : MonoBehaviour
     private Vector3 carryOffset = Vector3.zero;
     public float moveSpeed = 4.5f;
     private float leftEdge;
-    
+
     // Screen bounds for off-screen detection
     private float screenLeft;
     private float screenRight;
@@ -17,15 +17,16 @@ public class Football : MonoBehaviour
 
     private void OnEnable()
     {
-        // Subscribe to pipe speed changes for consistency
-        var gm = FindObjectOfType<GameManager>();
-        if (gm != null) moveSpeed = gm.CurrentPipeSpeed;
-        GameManager.OnPipeSpeedChanged += HandleSpeedChanged;
+        // Sync with global scroll speed
+        moveSpeed = GameManager.CurrentScrollSpeed;
+
+        // Subscribe to global speed changes
+        GameManager.OnScrollSpeedChanged += HandleSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandleSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandleSpeedChanged;
     }
 
     private void HandleSpeedChanged(float newSpeed)
@@ -40,19 +41,19 @@ public class Football : MonoBehaviour
             Debug.LogError("No Main Camera found in scene!");
             return;
         }
+
         leftEdge = Camera.main.ScreenToWorldPoint(Vector3.zero).x - 1f;
-        
-        // Calculate screen bounds for off-screen detection
+
+        // Cache screen bounds for off-screen checks
         Vector3 bottomLeft = Camera.main.ScreenToWorldPoint(Vector3.zero);
         Vector3 topRight = Camera.main.ScreenToWorldPoint(new Vector3(Camera.main.pixelWidth, Camera.main.pixelHeight));
-        
         screenLeft = bottomLeft.x - 1f;
         screenRight = topRight.x + 1f;
         screenBottom = bottomLeft.y - 1f;
         screenTop = topRight.y + 1f;
-        
-        // Try to auto-attach to player
-        player = FindObjectOfType<Player>();
+
+        // Try to find the player
+        player = FindFirstObjectByType<Player>();
     }
 
     private void Update()
@@ -62,53 +63,50 @@ public class Football : MonoBehaviour
             // Follow player
             transform.position = player.transform.position + carryOffset;
 
-            // Check if player (carrying ball) has gone off-screen
+            // If player carrying ball goes off-screen, trigger defense
             if (IsPlayerOffScreen())
             {
-                Debug.Log("[Football] Player carrying ball went off-screen! Despawning ball and entering Defense mode.");
+                Debug.Log("[Football] Player carrying ball went off-screen � entering Defense mode.");
                 isCarried = false;
-                
-                // Notify GameDayManager to start defense round
-                GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
+
+                var gameDayMgr = GameManager.GameDayInstance;
                 if (gameDayMgr != null && !gameDayMgr.IsInDefenseRound())
-                {
                     gameDayMgr.StartDefenseRound();
-                }
-                
+
                 Destroy(gameObject);
                 return;
             }
 
-            // Check for drop input (E key)
-            if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
-            {
+            // Drop football manually with 'E' or controller bumpers
+            bool dropKey = Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
+            bool dropController = ControllerInputManager.Instance != null && ControllerInputManager.Instance.IsBallDropPressed();
+            
+            if (dropKey || dropController)
                 Drop();
-            }
         }
         else
         {
-            // Move left with the game (when not carried)
+            // Move left when not carried
             transform.position += Vector3.left * moveSpeed * Time.deltaTime;
-            
-            // Destroy when off screen
+
+            // Destroy if off screen
             if (transform.position.x < leftEdge)
             {
-                GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
+                var gameDayMgr = GameManager.GameDayInstance;
                 if (gameDayMgr != null)
                 {
                     if (gameDayMgr.IsInDefenseRound())
                     {
-                        Debug.Log("[Football] Ball despawned without being collected during defense!");
-                        gameDayMgr.EndDefenseRound(false); // Opponent scores
+                        Debug.Log("[Football] Ball despawned during defense � opponent scores!");
+                        gameDayMgr.EndDefenseRound(false);
                     }
                     else
                     {
-                        // Ball despawned during offense mode without being grabbed - enter defense
-                        Debug.Log("[Football] Ball despawned without being collected during offense! Entering Defense mode.");
+                        Debug.Log("[Football] Ball despawned in offense � switching to defense.");
                         gameDayMgr.StartDefenseRound();
                     }
                 }
-                
+
                 Destroy(gameObject);
             }
         }
@@ -117,11 +115,9 @@ public class Football : MonoBehaviour
     private bool IsPlayerOffScreen()
     {
         if (player == null) return false;
-        
-        return (player.transform.position.x < screenLeft || 
-                player.transform.position.x > screenRight || 
-                player.transform.position.y < screenBottom || 
-                player.transform.position.y > screenTop);
+
+        Vector3 pos = player.transform.position;
+        return pos.x < screenLeft || pos.x > screenRight || pos.y < screenBottom || pos.y > screenTop;
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -130,37 +126,42 @@ public class Football : MonoBehaviour
         {
             player = other.GetComponent<Player>();
             if (player != null)
-            {
                 Carry();
-            }
         }
     }
 
     public void Carry()
     {
         isCarried = true;
-        carryOffset = new Vector3(0f, -0.35f, -0.1f); // Position at bottom left talons, on top of sprite
-        gameObject.tag = "Collectible"; // Tag it as collectible so it won't interfere
+        carryOffset = new Vector3(0f, -0.35f, -0.1f);
+        gameObject.tag = "Collectible";
     }
 
     public void Drop()
-    {
-        isCarried = false;
-        if (player != null)
-        {
-            // Enable gravity so the football falls
-            Rigidbody2D rb = GetComponent<Rigidbody2D>();
-            if (rb == null)
-            {
-                rb = gameObject.AddComponent<Rigidbody2D>();
-            }
-            rb.isKinematic = false;
-            rb.gravityScale = 1f;
-        }
-    }
+{
+    isCarried = false;
 
-    public bool IsCarried()
+    if (player != null)
     {
-        return isCarried;
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb == null)
+            rb = gameObject.AddComponent<Rigidbody2D>();
+
+        rb.bodyType = RigidbodyType2D.Dynamic;
+        rb.gravityScale = 1.5f; // slightly stronger gravity so it falls faster
+
+        // Reset any old velocity
+        rb.linearVelocity = Vector2.zero;
+
+        // Apply a small forward-and-downward impulse
+        float forwardForce = 3f;  // adjust as needed
+        float downwardForce = 2f; // adjust as needed
+        Vector2 dropDirection = new Vector2(1f, -1f).normalized;
+
+        rb.AddForce(dropDirection * new Vector2(forwardForce, downwardForce).magnitude, ForceMode2D.Impulse);
     }
+}
+
+
+    public bool IsCarried() => isCarried;
 }
