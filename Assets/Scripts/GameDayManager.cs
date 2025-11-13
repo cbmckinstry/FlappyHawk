@@ -154,7 +154,7 @@ public class GameDayManager : MonoBehaviour
         // Centralize enemy scoring for defense failure HERE
         if (!playerWon)
         {
-            int pointsScored = Random.value < 0.7f ? 3 : 7;
+            int pointsScored = UnityEngine.Random.value < 0.7f ? 3 : 7;
             enemyScore += pointsScored;
             SetEnemyScoreUI(enemyScore);
             Debug.Log($"[GameDayManager] Opponent scored {pointsScored}. Opponent total: {enemyScore}");
