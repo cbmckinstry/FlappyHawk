@@ -1887,7 +1887,7 @@ MonoBehaviour:
   minHeight: -2
   maxHeight: 2
   groundSpawnHeight: -1.35
-  obstacleSpawnChance: 0.5
+  obstacleSpawnChance: 0.7
   balloonWeight: 0.3
   siloWeight: 0.3
   turbineWeight: 0.3
