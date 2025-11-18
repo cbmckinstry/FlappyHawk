@@ -113,8 +113,17 @@ public class GameManager : MonoBehaviour
             GameDayInstance.GameOver();
     }
 
-    public static void OnPlayerDamaged(int remainingHealth) { }
-    public static void OnPlayerHealed(int newHealth) { }
+    public static void OnPlayerDamaged(int helmetDurability)
+    {
+        IowaInstance?.OnPlayerDamaged(helmetDurability);
+        GameDayInstance?.OnPlayerDamaged(helmetDurability);
+    }
+
+    public static void OnPlayerHealed(int helmetDurability)
+    {
+        IowaInstance?.OnPlayerHealed(helmetDurability);
+        GameDayInstance?.OnPlayerHealed(helmetDurability);
+    }
 
     public static bool IsGameActive()
     {

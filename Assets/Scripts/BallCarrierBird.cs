@@ -17,6 +17,10 @@ public class BallCarrierBird : MonoBehaviour
     [SerializeField] private Sprite[] flapSprites;
     [SerializeField] private float flapSpeed = 0.1f;
 
+    [Header("Ball")]
+    [SerializeField] private Sprite ballSprite;
+    private GameObject ballObject;
+
     private float leftEdge;
     private float startYPosition;
     private float bobTimer = 0f;
@@ -24,6 +28,7 @@ public class BallCarrierBird : MonoBehaviour
     private int currentFlapFrame = 0;
     private SpriteRenderer spriteRenderer;
     private bool hasBeenHit = false;
+    private bool hasDespawned = false;
 
     private void OnEnable()
     {
@@ -80,9 +85,11 @@ public class BallCarrierBird : MonoBehaviour
         // Animate wings
         UpdateFlapAnimation();
 
-        // Despawn if off-screen
-        if (transform.position.x < leftEdge)
+        // Despawn ONLY if off-screen on the left AND not already marked as despawned
+        if (!hasDespawned && transform.position.x < leftEdge)
         {
+            hasDespawned = true;
+            
             // Destroy all cyclone birds (reset screen)
             foreach (var bird in FindObjectsByType<CycloneBird>(FindObjectsSortMode.None))
                 Destroy(bird.gameObject);
@@ -121,7 +128,7 @@ public class BallCarrierBird : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (hasBeenHit) return;
+        if (hasBeenHit || hasDespawned) return;
 
         Player player = other.GetComponent<Player>();
         if (player != null)
@@ -141,5 +148,28 @@ public class BallCarrierBird : MonoBehaviour
         GameManager.GameDayInstance?.EndDefenseRound(true);
 
         Destroy(gameObject);
+    }
+
+    public void AttachBallSprite(Sprite sprite)
+    {
+        if (sprite == null)
+        {
+            Debug.LogWarning("[BallCarrierBird] Attempted to attach null sprite!");
+            return;
+        }
+
+        if (ballObject == null)
+        {
+            ballObject = new GameObject("Ball");
+            ballObject.transform.SetParent(transform);
+            ballObject.transform.localPosition = new Vector3(0.3f, -0.2f, -0.5f);
+            ballObject.transform.localScale = Vector3.one * 0.7f;
+
+            SpriteRenderer ballRenderer = ballObject.AddComponent<SpriteRenderer>();
+            ballRenderer.sprite = sprite;
+            ballRenderer.sortingOrder = 1;
+            
+            Debug.Log("[BallCarrierBird] Ball sprite attached successfully!");
+        }
     }
 }

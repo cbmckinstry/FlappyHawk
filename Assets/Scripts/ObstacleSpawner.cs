@@ -13,11 +13,15 @@ public class Spawner : MonoBehaviour
     [Header("Collectible Prefabs")]
     public GameObject cornKernelPrefab;
     public GameObject helmetPrefab;
+    public GameObject windBoostPrefab;
 
     [Header("Game Day Mode Prefabs")]
     public GameObject footballPrefab;
     public GameObject goalPostEasyPrefab;
     public GameObject goalPostProPrefab;
+
+    [Header("Game Day Mode Sprites")]
+    [SerializeField] private Sprite footballSprite;
 
     [Header("Spawn Settings")]
     public float spawnRate = 1.2f;
@@ -35,6 +39,7 @@ public class Spawner : MonoBehaviour
 
     [Range(0f, 1f)] public float cornKernelWeight = 0.7f;
     [Range(0f, 1f)] public float helmetWeight = 0.3f;
+    [Range(0f, 1f)] public float windBoostWeight = 0.1f;
 
     [SerializeField] private float defenseCarrierDelay = 3.0f; // tweak in Inspector
     private bool defenseCarrierSpawned = false;
@@ -69,6 +74,11 @@ private float offenseKickstartTimer = 0f;
 
 // Optional: track instances if you want to clean them up on defense/reset
 private readonly List<GameObject> activeGoalPosts = new();
+
+// Mode swap delay
+private float modeSwapDelayTimer = 0f;
+private const float OFFENSE_TO_DEFENSE_DELAY = 0f;
+private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
 
 
@@ -132,7 +142,8 @@ private readonly List<GameObject> activeGoalPosts = new();
 {
     if (gameDayMgr.InDefenseRound)
     {
-        // Entered DEFENSE
+        // Entered DEFENSE (no delay)
+        modeSwapDelayTimer = OFFENSE_TO_DEFENSE_DELAY;
         defenseCarrierSpawned = false;
         defenseTimer = 0f;
         goalPostsThisDrive = 0;
@@ -140,7 +151,8 @@ private readonly List<GameObject> activeGoalPosts = new();
     }
     else
     {
-        // === Entered OFFENSE ===
+        // Entered OFFENSE (1 second delay)
+        modeSwapDelayTimer = DEFENSE_TO_OFFENSE_DELAY;
         ballSpawned = false;                  // allow ball to spawn again
         timer = 0f;                           // reset wave timer
         waveSpawnCooldown = WAVE_SPAWN_DELAY; // small breathing room before first wave
@@ -152,19 +164,37 @@ private readonly List<GameObject> activeGoalPosts = new();
     prevInDefenseRound = gameDayMgr.InDefenseRound;
 }
 
-    // --- DEFENSE: spawn exactly one ball-carrier bird, then stop spawning ---
-    if (gameDayMgr.InDefenseRound)
-{
-    // Wait before spawning the single ball-carrier bird
-    defenseTimer += Time.deltaTime;
-
-    if (!defenseCarrierSpawned && defenseTimer >= defenseCarrierDelay)
+    // --- Mode swap delay: prevent spawning for 2 seconds after mode change ---
+    if (modeSwapDelayTimer > 0f)
     {
-        SpawnBallCarrierAtScreenCenter();
-        defenseCarrierSpawned = true;
+        modeSwapDelayTimer -= Time.deltaTime;
+        return;
     }
 
-    // No other spawns during defense
+    // --- DEFENSE: spawn cyclone birds until ball-carrier spawns ---
+    if (gameDayMgr.InDefenseRound)
+{
+    // Spawn birds until the carrier spawns
+    if (!defenseCarrierSpawned)
+    {
+        // Spawn birds on normal cadence
+        timer += Time.deltaTime;
+        if (timer >= spawnRate)
+        {
+            timer = 0f;
+            SpawnGameDayWave(true);
+        }
+
+        // Wait before spawning the single ball-carrier bird
+        defenseTimer += Time.deltaTime;
+        if (defenseTimer >= defenseCarrierDelay)
+        {
+            SpawnBallCarrierAtScreenCenter();
+            defenseCarrierSpawned = true;
+        }
+    }
+
+    // Stop spawning after carrier appears
     return;
 }
 
@@ -330,9 +360,9 @@ private readonly List<GameObject> activeGoalPosts = new();
 
     if (prefab == null) return;
 
-    // Spawn near right edge at ground height
+    // Spawn near right edge, higher than minHeight to account for increased size
     Vector3 spawnPos = transform.position;
-    spawnPos.y = groundSpawnHeight;
+    spawnPos.y = minHeight + 1.25f;
 
     if (Camera.main != null)
     {
@@ -358,7 +388,17 @@ private readonly List<GameObject> activeGoalPosts = new();
 
         GameObject enemy = Instantiate(cycloneBirdPrefab, pos, Quaternion.identity);
         Destroy(enemy.GetComponent<CycloneBird>());
-        enemy.AddComponent<BallCarrierBird>();
+        BallCarrierBird carrier = enemy.AddComponent<BallCarrierBird>();
+        
+        // Use assigned sprite or load from resources
+        Sprite sprite = footballSprite;
+        if (sprite == null)
+            sprite = Resources.Load<Sprite>("Sprites/Collectibles/Football");
+        
+        if (sprite != null)
+            carrier.AttachBallSprite(sprite);
+        else
+            Debug.LogError("[ObstacleSpawner] Could not find Football sprite!");
     }
 
     private void SpawnObstacleOrCollectible()
@@ -428,11 +468,21 @@ private readonly List<GameObject> activeGoalPosts = new();
     private GameObject SelectRandomCollectible()
     {
         float rand = Random.value;
-        if (rand < cornKernelWeight && cornKernelPrefab != null)
+        float cumulative = 0f;
+
+        cumulative += cornKernelWeight;
+        if (rand < cumulative && cornKernelPrefab != null)
             return cornKernelPrefab;
-        if (helmetPrefab != null)
+
+        cumulative += helmetWeight;
+        if (rand < cumulative && helmetPrefab != null)
             return helmetPrefab;
-        return cornKernelPrefab;
+
+        cumulative += windBoostWeight;
+        if (rand < cumulative && windBoostPrefab != null)
+            return windBoostPrefab;
+
+        return cornKernelPrefab ?? helmetPrefab ?? windBoostPrefab;
     }
 
     private void SpawnParentTornado()
@@ -464,14 +514,27 @@ private readonly List<GameObject> activeGoalPosts = new();
     defenseTimer = 0f;
 
     offenseKickstartTimer = 0f; // also reset the kickstart
-    activeGoalPosts.Clear();
-
-
+    modeSwapDelayTimer = 0f;
     activeGoalPosts.Clear();
 }
 
 
     public void ResetGameDayBall() => ballSpawned = false;
+
+    public void ClearAllGameDayActors()
+    {
+        var birds = FindObjectsOfType<CycloneBird>();
+        foreach (var bird in birds)
+            Destroy(bird.gameObject);
+
+        var carriers = FindObjectsOfType<BallCarrierBird>();
+        foreach (var carrier in carriers)
+            Destroy(carrier.gameObject);
+
+        var footballs = FindObjectsOfType<Football>();
+        foreach (var football in footballs)
+            Destroy(football.gameObject);
+    }
 
     public int GetGameDayWavesCompleted() => gameDayWavesCompleted;
     public int GetEnemiesInCurrentWave() => enemiesInCurrentWave;

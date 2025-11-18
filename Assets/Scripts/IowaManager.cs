@@ -23,6 +23,8 @@ public class IowaManager : MonoBehaviour
 
     // UI (internal labels)
     [SerializeField] private TextMeshProUGUI scoreText;
+    [SerializeField] private TextMeshProUGUI helmetDurabilityText;
+    [SerializeField] private TextMeshProUGUI playerHealthText;
 
     [Header("Tuning")]
     [SerializeField] private float scrollSpeed = 5f;
@@ -97,9 +99,11 @@ public class IowaManager : MonoBehaviour
     Time.timeScale = 1f;
     player.enabled = true;
 
+    UpdateAllDisplays();
+
     // wipe old run’s spawned objects
     foreach (var obj in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
-        if (obj is Obstacle or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or Football or GoalPost or BallCarrierBird)
+        if (obj is Obstacle or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or WindBoost or Football or GoalPost or BallCarrierBird)
             Destroy(obj.gameObject);
 
         // >>> NEW: reset Game Day
@@ -197,7 +201,55 @@ public class IowaManager : MonoBehaviour
     public void RegisterObstacle() => obstaclesSpawned++;
     public void RegisterJump() => jumps++;
 
+    private void UpdateHelmetDurabilityDisplay()
+    {
+        if (player == null)
+            player = FindObjectOfType<Player>();
+        if (helmetDurabilityText == null)
+        {
+            var obj = GameObject.Find("HelmetNumber");
+            if (obj != null)
+                helmetDurabilityText = obj.GetComponent<TextMeshProUGUI>();
+        }
 
+        if (player != null && helmetDurabilityText != null)
+        {
+            helmetDurabilityText.text = player.GetHelmetDurability().ToString();
+        }
+    }
+
+    private void UpdatePlayerHealthDisplay()
+    {
+        if (player == null)
+            player = FindObjectOfType<Player>();
+        if (playerHealthText == null)
+        {
+            var obj = GameObject.Find("HealthNumber");
+            if (obj != null)
+                playerHealthText = obj.GetComponent<TextMeshProUGUI>();
+        }
+
+        if (player != null && playerHealthText != null)
+        {
+            playerHealthText.text = player.GetHealth().ToString();
+        }
+    }
+
+    private void UpdateAllDisplays()
+    {
+        UpdateHelmetDurabilityDisplay();
+        UpdatePlayerHealthDisplay();
+    }
+
+    public void OnPlayerDamaged(int helmetDurability)
+    {
+        UpdateAllDisplays();
+    }
+
+    public void OnPlayerHealed(int helmetDurability)
+    {
+        UpdateAllDisplays();
+    }
 
 public void ReturnToMainMenu()
 {

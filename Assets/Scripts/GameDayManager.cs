@@ -25,6 +25,8 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI modeText;
     [SerializeField] private TextMeshProUGUI playerScoreText;
     [SerializeField] private TextMeshProUGUI enemyScoreText;
+    [SerializeField] private TextMeshProUGUI helmetDurabilityText;
+    [SerializeField] private TextMeshProUGUI playerHealthText;
 
     [Header("Tuning")]
     [SerializeField] private float scrollSpeed = 5f;
@@ -250,9 +252,12 @@ public class GameDayManager : MonoBehaviour
         ballCarrierSpawning = false;
         isSpawningPaused = false;
 
-        // Reset spawner fully so offense can start again
+        // Clear all actors (birds, balls, carriers)
         if (spawner != null)
+        {
+            spawner.ClearAllGameDayActors();
             spawner.ResetSpawner();
+        }
     }
 
     // -------------------- Difficulty --------------------
@@ -326,6 +331,7 @@ public class GameDayManager : MonoBehaviour
 
         ResetScores();
         OnPlayerDeathReset();
+        UpdateAllDisplays();
 
         ApplyDifficulty();
     }
@@ -337,6 +343,9 @@ public class GameDayManager : MonoBehaviour
         readyButton?.SetActive(false);
         difficultyImage?.gameObject.SetActive(true);
         menuButton?.SetActive(true);
+
+        if (spawner != null)
+            spawner.ClearAllGameDayActors();
 
         Pause();
         SelectPlayButton();
@@ -355,6 +364,56 @@ public class GameDayManager : MonoBehaviour
     {
         Time.timeScale = 0f;
         player.enabled = false;
+    }
+
+    private void UpdateHelmetDurabilityDisplay()
+    {
+        if (player == null)
+            player = FindObjectOfType<Player>();
+        if (helmetDurabilityText == null)
+        {
+            var obj = GameObject.Find("HelmetNumber");
+            if (obj != null)
+                helmetDurabilityText = obj.GetComponent<TextMeshProUGUI>();
+        }
+
+        if (player != null && helmetDurabilityText != null)
+        {
+            helmetDurabilityText.text = player.GetHelmetDurability().ToString();
+        }
+    }
+
+    private void UpdatePlayerHealthDisplay()
+    {
+        if (player == null)
+            player = FindObjectOfType<Player>();
+        if (playerHealthText == null)
+        {
+            var obj = GameObject.Find("HealthNumber");
+            if (obj != null)
+                playerHealthText = obj.GetComponent<TextMeshProUGUI>();
+        }
+
+        if (player != null && playerHealthText != null)
+        {
+            playerHealthText.text = player.GetHealth().ToString();
+        }
+    }
+
+    private void UpdateAllDisplays()
+    {
+        UpdateHelmetDurabilityDisplay();
+        UpdatePlayerHealthDisplay();
+    }
+
+    public void OnPlayerDamaged(int helmetDurability)
+    {
+        UpdateAllDisplays();
+    }
+
+    public void OnPlayerHealed(int helmetDurability)
+    {
+        UpdateAllDisplays();
     }
 
     public void ReturnToMainMenu()

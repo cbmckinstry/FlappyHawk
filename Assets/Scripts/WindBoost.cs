@@ -1,17 +1,16 @@
 using UnityEngine;
 
-public class Helmet : MonoBehaviour, ICollectible
+public class WindBoost : MonoBehaviour, ICollectible
 {
     public int healthGain = 1;
     public float moveSpeed = 4.5f;
     private float leftEdge;
+    private const float BOOST_DISTANCE = 1.5f;
+    private const float BOOST_SPEED = 0.5f;
 
     private void OnEnable()
     {
-        // Sync with global scroll speed
         moveSpeed = GameManager.CurrentScrollSpeed;
-
-        // Subscribe for updates when scroll speed changes
         GameManager.OnScrollSpeedChanged += HandleSpeedChanged;
     }
 
@@ -38,16 +37,20 @@ public class Helmet : MonoBehaviour, ICollectible
 
     private void Update()
     {
-        // Move left with the global scroll speed
         transform.position += Vector3.left * moveSpeed * Time.deltaTime;
 
-        // Destroy when off-screen
         if (transform.position.x < leftEdge)
             Destroy(gameObject);
     }
 
     public void Collect(Player player)
     {
-        player.GainHelmet(healthGain);
+        bool isAtMaxHealth = player.GetHealth() >= player.GetMaxHealth();
+        player.GainHealth(healthGain);
+        
+        if (!isAtMaxHealth)
+        {
+            player.ApplyHorizontalBoost(BOOST_DISTANCE, BOOST_SPEED);
+        }
     }
 }
