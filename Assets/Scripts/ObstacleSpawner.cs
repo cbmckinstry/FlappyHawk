@@ -19,6 +19,7 @@ public class Spawner : MonoBehaviour
     public GameObject footballPrefab;
     public GameObject goalPostEasyPrefab;
     public GameObject goalPostProPrefab;
+    public GameObject ballCarrierPrefab;
 
     [Header("Game Day Mode Sprites")]
     [SerializeField] private Sprite footballSprite;
@@ -41,9 +42,12 @@ public class Spawner : MonoBehaviour
     [Range(0f, 1f)] public float helmetWeight = 0.3f;
     [Range(0f, 1f)] public float windBoostWeight = 0.1f;
 
-    [SerializeField] private float defenseCarrierDelay = 3.0f; // tweak in Inspector
+    [SerializeField] private float defenseCarrierDelay = 3.0f;
     private bool defenseCarrierSpawned = false;
-    private float defenseTimer = 0f;    
+    private float defenseTimer = 0f;
+    private const float CARRIER_PRE_SPAWN_BLOCK = 1.0f;
+    private const float CARRIER_WAVE_BLOCK_DURATION = 2.0f;
+    private float carrierWaveBlockTimer = 0f;    
 
     private float timer;
     private bool parentTornadoSpawned = false;
@@ -146,6 +150,7 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
         modeSwapDelayTimer = OFFENSE_TO_DEFENSE_DELAY;
         defenseCarrierSpawned = false;
         defenseTimer = 0f;
+        carrierWaveBlockTimer = 0f;
         goalPostsThisDrive = 0;
         goalPostTimer = 0f;
     }
@@ -153,13 +158,14 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
     {
         // Entered OFFENSE (1 second delay)
         modeSwapDelayTimer = DEFENSE_TO_OFFENSE_DELAY;
-        ballSpawned = false;                  // allow ball to spawn again
-        timer = 0f;                           // reset wave timer
-        waveSpawnCooldown = WAVE_SPAWN_DELAY; // small breathing room before first wave
-        goalPostsThisDrive = 0;               // restart goal-post trickle
+        ballSpawned = false;
+        timer = 0f;
+        waveSpawnCooldown = WAVE_SPAWN_DELAY;
+        goalPostsThisDrive = 0;
         goalPostTimer = 0f;
+        carrierWaveBlockTimer = 0f;
 
-        offenseKickstartTimer = offenseKickstartSeconds; // <<< NEW
+        offenseKickstartTimer = offenseKickstartSeconds;
     }
     prevInDefenseRound = gameDayMgr.InDefenseRound;
 }
@@ -177,17 +183,32 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
     // Spawn birds until the carrier spawns
     if (!defenseCarrierSpawned)
     {
-        // Spawn birds on normal cadence
-        timer += Time.deltaTime;
-        if (timer >= spawnRate)
-        {
-            timer = 0f;
-            SpawnGameDayWave(true);
-        }
-
         // Wait before spawning the single ball-carrier bird
         defenseTimer += Time.deltaTime;
-        if (defenseTimer >= defenseCarrierDelay)
+        float timeUntilCarrier = defenseCarrierDelay - defenseTimer;
+        bool carrierSpawningThisFrame = defenseTimer >= defenseCarrierDelay;
+
+        if (timeUntilCarrier <= CARRIER_PRE_SPAWN_BLOCK && carrierWaveBlockTimer <= 0f)
+            carrierWaveBlockTimer = CARRIER_WAVE_BLOCK_DURATION;
+
+        if (carrierWaveBlockTimer > 0f)
+            carrierWaveBlockTimer -= Time.deltaTime;
+
+        bool waveBlocked = carrierWaveBlockTimer > 0f;
+
+        // Spawn birds on normal cadence, but NOT if carrier wave block is active
+        if (!waveBlocked)
+        {
+            timer += Time.deltaTime;
+            if (timer >= spawnRate)
+            {
+                timer = 0f;
+                SpawnGameDayWave(true);
+            }
+        }
+
+        // Spawn the single ball-carrier bird
+        if (carrierSpawningThisFrame)
         {
             SpawnBallCarrierAtScreenCenter();
             defenseCarrierSpawned = true;
@@ -230,6 +251,9 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
     if (!gameDayMgr.InDefenseRound)
     {
+    // Never spawn waves if carrier is active, even during kickstart
+    if (carrierNow) return;
+
     if (offenseKickstartTimer > 0f)
     {
         offenseKickstartTimer -= Time.deltaTime;
@@ -237,7 +261,7 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
     }
     else
     {
-        if (paused || carrierNow) return;
+        if (paused) return;
     }
     }
 
@@ -380,25 +404,31 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
     public void SpawnBallCarrierAtScreenCenter()
     {
-        if (cycloneBirdPrefab == null || Camera.main == null) return;
+        if (Camera.main == null) return;
 
         Vector3 screenRight = Camera.main.ScreenToWorldPoint(
             new Vector3(Camera.main.pixelWidth, Camera.main.pixelHeight / 2f, 0f));
         Vector3 pos = new(screenRight.x + 1f, screenRight.y, 0f);
 
-        GameObject enemy = Instantiate(cycloneBirdPrefab, pos, Quaternion.identity);
-        Destroy(enemy.GetComponent<CycloneBird>());
-        BallCarrierBird carrier = enemy.AddComponent<BallCarrierBird>();
-        
-        // Use assigned sprite or load from resources
-        Sprite sprite = footballSprite;
-        if (sprite == null)
-            sprite = Resources.Load<Sprite>("Sprites/Collectibles/Football");
-        
-        if (sprite != null)
-            carrier.AttachBallSprite(sprite);
-        else
-            Debug.LogError("[ObstacleSpawner] Could not find Football sprite!");
+        if (ballCarrierPrefab != null)
+        {
+            Instantiate(ballCarrierPrefab, pos, Quaternion.identity);
+        }
+        else if (cycloneBirdPrefab != null)
+        {
+            GameObject enemy = Instantiate(cycloneBirdPrefab, pos, Quaternion.identity);
+            Destroy(enemy.GetComponent<CycloneBird>());
+            BallCarrierBird carrier = enemy.AddComponent<BallCarrierBird>();
+            
+            Sprite sprite = footballSprite;
+            if (sprite == null)
+                sprite = Resources.Load<Sprite>("Sprites/Collectibles/Football");
+            
+            if (sprite != null)
+                carrier.AttachBallSprite(sprite);
+            else
+                Debug.LogError("[ObstacleSpawner] Could not find Football sprite!");
+        }
     }
 
     private void SpawnObstacleOrCollectible()
@@ -502,7 +532,6 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
     waveSpawnCooldown = 0f;
     wavesSinceLastHelmet = 0;
 
-    // Goal post timers/counters
     goalPostTimer = 0f;
     goalPostsThisDrive = 0;
     prevInDefenseRound = true;
@@ -512,8 +541,9 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
     defenseCarrierSpawned = false;
     defenseTimer = 0f;
+    carrierWaveBlockTimer = 0f;
 
-    offenseKickstartTimer = 0f; // also reset the kickstart
+    offenseKickstartTimer = 0f;
     modeSwapDelayTimer = 0f;
     activeGoalPosts.Clear();
 }

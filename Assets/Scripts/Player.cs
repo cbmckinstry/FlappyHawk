@@ -73,6 +73,7 @@ public class Player : MonoBehaviour
     private void OnEnable()
     {
         Vector3 position = transform.position;
+        position.x = 0f;
         position.y = 0f;
         transform.position = position;
         direction = Vector3.zero;
@@ -193,6 +194,13 @@ public class Player : MonoBehaviour
         }
         else
         {
+            if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
+            {
+                GameManager.GameOver();
+                AudioManager.Instance?.PlayDie();
+                return;
+            }
+
             if (GameManager.CurrentGameMode == GameManager.GameMode.Iowa)
             {
                 ApplyKnockback();

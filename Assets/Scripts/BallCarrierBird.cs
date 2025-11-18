@@ -162,8 +162,8 @@ public class BallCarrierBird : MonoBehaviour
         {
             ballObject = new GameObject("Ball");
             ballObject.transform.SetParent(transform);
-            ballObject.transform.localPosition = new Vector3(0.3f, -0.2f, -0.5f);
-            ballObject.transform.localScale = Vector3.one * 0.7f;
+            ballObject.transform.localPosition = new Vector3(0f, -0.2f, -0.5f);
+            ballObject.transform.localScale = Vector3.one * 0.35f;
 
             SpriteRenderer ballRenderer = ballObject.AddComponent<SpriteRenderer>();
             ballRenderer.sprite = sprite;

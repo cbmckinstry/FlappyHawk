@@ -1619,6 +1619,8 @@ MonoBehaviour:
   modeText: {fileID: 343688574}
   playerScoreText: {fileID: 603566214}
   enemyScoreText: {fileID: 1259758923}
+  helmetDurabilityText: {fileID: 0}
+  playerHealthText: {fileID: 0}
   scrollSpeed: 5
   collegeSpawnRate: 1.1
   proSpawnRate: 0.9
@@ -1675,10 +1677,12 @@ MonoBehaviour:
   tornadoPrefab: {fileID: 9153819624970714128, guid: 2124dbdb88d5a8c4fb392fdecfe4b7a7, type: 3}
   cornKernelPrefab: {fileID: 3956692113109538018, guid: b3ac8e3b460cfd942b3b8fc94b0299d2, type: 3}
   helmetPrefab: {fileID: 8494290625201947088, guid: 754dae1646838b44bb80ea2612e5b0ae, type: 3}
+  windBoostPrefab: {fileID: 0}
   footballPrefab: {fileID: 2178009137300401338, guid: 5333342761614aa4eb167eac53fe1ee7, type: 3}
   goalPostEasyPrefab: {fileID: 7490240394742376938, guid: b5f4c770fd60709428e9e65c8a08bf7e, type: 3}
   goalPostProPrefab: {fileID: 2490375226695302880, guid: 905f07538e58b3443b32573657935544, type: 3}
-  footballSprite: {fileID: 0}
+  ballCarrierPrefab: {fileID: 0}
+  footballSprite: {fileID: 21300000, guid: bbd66a1854738004c8fa4d5d0a28e2a2, type: 3}
   spawnRate: 1.2
   minHeight: -1
   maxHeight: 2
@@ -1691,6 +1695,7 @@ MonoBehaviour:
   tornadoWeight: 0.2
   cornKernelWeight: 0.7
   helmetWeight: 0.3
+  windBoostWeight: 0.1
   defenseCarrierDelay: 5
   goalPostSpawnRate: 10
   maxGoalPostsPerDrive: 4
@@ -2651,7 +2656,8 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 8cf1c26f1985dcb4ab2ee961cd03b2ab, type: 3}
   - {fileID: 21300000, guid: af6f8f98e8f472c47bdaf05ab1c13a62, type: 3}
   animationSpeed: 0.15
-  maxHealth: 3
+  maxPlayerHealth: 1
+  maxHelmetDurability: 3
 --- !u!1 &2133836186
 GameObject:
   m_ObjectHideFlags: 0
