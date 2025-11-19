@@ -21,6 +21,9 @@ public class Player : MonoBehaviour
     private GameObject helmetDisplay;
     public bool hasHelmet { get; private set; } = false;
 
+    private GameObject cornMagnetDisplay;
+    private SpriteRenderer magnetSpriteRenderer;
+
     private float screenLeft, screenRight, screenTop, screenBottom;
     private bool hasLeftScreen = false;
 
@@ -39,6 +42,11 @@ public class Player : MonoBehaviour
     private const float COLOR_TRANSITION_TIME = 0.5f;
     private Coroutine colorAnimationCoroutine;
 
+    private float magnetDurationRemaining = 0f;
+    private float magnetTotalDuration = 0f;
+    private bool isMagnetActive = false;
+    private const float MAGNET_FADE_START_TIME = 10f;
+
     private void AnimateSprite()
     {
         spriteIndex++;
@@ -53,6 +61,13 @@ public class Player : MonoBehaviour
         helmetDisplay = transform.Find("HelmetDisplay")?.gameObject;
         if (helmetDisplay != null)
             helmetDisplay.SetActive(false);
+
+        cornMagnetDisplay = transform.Find("CornMagnetVisual")?.gameObject;
+        if (cornMagnetDisplay != null)
+        {
+            magnetSpriteRenderer = cornMagnetDisplay.GetComponent<SpriteRenderer>();
+            cornMagnetDisplay.SetActive(false);
+        }
 
         if (Camera.main != null)
         {
@@ -89,6 +104,11 @@ public class Player : MonoBehaviour
         hasLeftScreen = false;
         if (helmetDisplay != null)
             helmetDisplay.SetActive(false);
+
+        isMagnetActive = false;
+        magnetDurationRemaining = 0f;
+        if (cornMagnetDisplay != null)
+            cornMagnetDisplay.SetActive(false);
     }
 
     private void Update()
@@ -124,6 +144,7 @@ public class Player : MonoBehaviour
                 boostVelocityX = 0f;
         }
 
+        UpdateCornMagnet();
         CheckOffScreenAndTriggerDefense();
     }
 
@@ -364,6 +385,104 @@ private void DieToGround()
         spriteRenderer.color = originalColor;
         isInvulnerable = false;
     }
+
+    public void ActivateCornMagnet(float duration)
+    {
+        bool wasAlreadyActive = isMagnetActive;
+        
+        magnetDurationRemaining += duration;
+        magnetTotalDuration = magnetDurationRemaining;
+        isMagnetActive = true;
+
+        if (!wasAlreadyActive)
+        {
+            CreateMagnetVisual();
+            Spawner spawner = FindObjectOfType<Spawner>();
+            if (spawner != null)
+                spawner.ActivateProbabilityBoost();
+        }
+        else if (magnetSpriteRenderer != null)
+        {
+            Color magnetColor = magnetSpriteRenderer.color;
+            magnetColor.a = 1f;
+            magnetSpriteRenderer.color = magnetColor;
+        }
+    }
+
+    private void CreateMagnetVisual()
+    {
+        if (cornMagnetDisplay == null)
+            return;
+
+        cornMagnetDisplay.SetActive(true);
+        
+        if (magnetSpriteRenderer != null)
+        {
+            Color magnetColor = magnetSpriteRenderer.color;
+            magnetColor.a = 1f;
+            magnetSpriteRenderer.color = magnetColor;
+        }
+    }
+
+    private void UpdateCornMagnet()
+    {
+        if (!isMagnetActive)
+            return;
+
+        magnetDurationRemaining -= Time.deltaTime;
+
+        if (magnetDurationRemaining <= 0f)
+        {
+            isMagnetActive = false;
+            if (cornMagnetDisplay != null)
+                cornMagnetDisplay.SetActive(false);
+
+            Spawner spawner = FindObjectOfType<Spawner>();
+            if (spawner != null)
+                spawner.DeactivateProbabilityBoost();
+        }
+        else
+        {
+            float timeUntilFade = magnetDurationRemaining - MAGNET_FADE_START_TIME;
+            
+            if (cornMagnetDisplay != null && magnetSpriteRenderer != null)
+            {
+                if (timeUntilFade <= 0f)
+                {
+                    float fadeProgress = (MAGNET_FADE_START_TIME - magnetDurationRemaining) / MAGNET_FADE_START_TIME;
+                    Color magnetColor = magnetSpriteRenderer.color;
+                    magnetColor.a = Mathf.Lerp(1f, 0f, fadeProgress);
+                    magnetSpriteRenderer.color = magnetColor;
+                }
+                else
+                {
+                    Color magnetColor = magnetSpriteRenderer.color;
+                    magnetColor.a = 1f;
+                    magnetSpriteRenderer.color = magnetColor;
+                }
+            }
+
+            AutoCollectCornKernels();
+        }
+    }
+
+    private void AutoCollectCornKernels()
+    {
+        CornKernel[] allCornKernels = FindObjectsOfType<CornKernel>();
+        
+        foreach (CornKernel kernel in allCornKernels)
+        {
+            if (kernel.transform.position.x >= transform.position.x && 
+                kernel.transform.position.x < transform.position.x + 0.5f &&
+                Mathf.Abs(kernel.transform.position.y - transform.position.y) < 1f)
+            {
+                kernel.Collect(this);
+                Destroy(kernel.gameObject);
+            }
+        }
+    }
+
+    public bool IsMagnetActive() => isMagnetActive;
 
     public int GetHealth() => playerHealth;
     public int GetMaxHealth() => maxPlayerHealth;

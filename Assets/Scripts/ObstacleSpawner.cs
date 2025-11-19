@@ -14,6 +14,7 @@ public class Spawner : MonoBehaviour
     public GameObject cornKernelPrefab;
     public GameObject helmetPrefab;
     public GameObject windBoostPrefab;
+    public GameObject cornMagnetPrefab;
 
     [Header("Game Day Mode Prefabs")]
     public GameObject footballPrefab;
@@ -41,6 +42,13 @@ public class Spawner : MonoBehaviour
     [Range(0f, 1f)] public float cornKernelWeight = 0.7f;
     [Range(0f, 1f)] public float helmetWeight = 0.3f;
     [Range(0f, 1f)] public float windBoostWeight = 0.1f;
+    [Range(0f, 1f)] public float cornMagnetWeight = 0.05f;
+
+    private bool isProbabilityBoostActive = false;
+    private float originalObstacleSpawnChance;
+    private float originalCornMagnetWeight;
+    private float originalObstacleWeight;
+    private float originalCornKernelWeight;
 
     [SerializeField] private float defenseCarrierDelay = 3.0f;
     private bool defenseCarrierSpawned = false;
@@ -512,7 +520,11 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
         if (rand < cumulative && windBoostPrefab != null)
             return windBoostPrefab;
 
-        return cornKernelPrefab ?? helmetPrefab ?? windBoostPrefab;
+        cumulative += cornMagnetWeight;
+        if (rand < cumulative && cornMagnetPrefab != null)
+            return cornMagnetPrefab;
+
+        return cornKernelPrefab ?? helmetPrefab ?? windBoostPrefab ?? cornMagnetPrefab;
     }
 
     private void SpawnParentTornado()
@@ -550,6 +562,33 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
 
     public void ResetGameDayBall() => ballSpawned = false;
+
+    public void ActivateProbabilityBoost()
+    {
+        if (!isProbabilityBoostActive)
+        {
+            isProbabilityBoostActive = true;
+            originalObstacleSpawnChance = obstacleSpawnChance;
+            originalCornMagnetWeight = cornMagnetWeight;
+            originalObstacleWeight = (balloonWeight + siloWeight + turbineWeight + cycloneBirdWeight + tornadoWeight) / 5f;
+            originalCornKernelWeight = cornKernelWeight;
+
+            obstacleSpawnChance *= 0.9f;
+            cornMagnetWeight *= 0.9f;
+            cornKernelWeight *= 1.1f;
+        }
+    }
+
+    public void DeactivateProbabilityBoost()
+    {
+        if (isProbabilityBoostActive)
+        {
+            isProbabilityBoostActive = false;
+            obstacleSpawnChance = originalObstacleSpawnChance;
+            cornMagnetWeight = originalCornMagnetWeight;
+            cornKernelWeight = originalCornKernelWeight;
+        }
+    }
 
     public void ClearAllGameDayActors()
     {
