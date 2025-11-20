@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Collections;
 
 public class Player : MonoBehaviour
 {
@@ -12,14 +13,39 @@ public class Player : MonoBehaviour
     private int spriteIndex = 0;
     public float animationSpeed = 0.15f;
 
-    private int health = 1;
-    public int maxHealth = 3;
+    private int playerHealth = 1;
+    public int maxPlayerHealth = 1;
+    private int helmetDurability = 0;
+    public int maxHelmetDurability = 3;
 
     private GameObject helmetDisplay;
     public bool hasHelmet { get; private set; } = false;
 
+    private GameObject cornMagnetDisplay;
+    private SpriteRenderer magnetSpriteRenderer;
+
     private float screenLeft, screenRight, screenTop, screenBottom;
     private bool hasLeftScreen = false;
+
+    private Vector3 knockbackVelocity = Vector3.zero;
+    private bool isKnockedBack = false;
+    private const float KNOCKBACK_DISTANCE = 1.5f;
+    private const float KNOCKBACK_SPEED = 4.5f;
+    private const float KNOCKBACK_DURATION = KNOCKBACK_DISTANCE / KNOCKBACK_SPEED;
+
+    private float boostVelocityX = 0f;
+    private float boostTimeRemaining = 0f;
+
+    private bool isInvulnerable = false;
+    private Color originalColor = Color.white;
+    private const float INVULNERABILITY_DURATION = 2.0f;
+    private const float COLOR_TRANSITION_TIME = 0.5f;
+    private Coroutine colorAnimationCoroutine;
+
+    private float magnetDurationRemaining = 0f;
+    private float magnetTotalDuration = 0f;
+    private bool isMagnetActive = false;
+    private const float MAGNET_FADE_START_TIME = 10f;
 
     private void AnimateSprite()
     {
@@ -35,6 +61,13 @@ public class Player : MonoBehaviour
         helmetDisplay = transform.Find("HelmetDisplay")?.gameObject;
         if (helmetDisplay != null)
             helmetDisplay.SetActive(false);
+
+        cornMagnetDisplay = transform.Find("CornMagnetVisual")?.gameObject;
+        if (cornMagnetDisplay != null)
+        {
+            magnetSpriteRenderer = cornMagnetDisplay.GetComponent<SpriteRenderer>();
+            cornMagnetDisplay.SetActive(false);
+        }
 
         if (Camera.main != null)
         {
@@ -55,14 +88,27 @@ public class Player : MonoBehaviour
     private void OnEnable()
     {
         Vector3 position = transform.position;
+        position.x = 0f;
         position.y = 0f;
         transform.position = position;
         direction = Vector3.zero;
-        health = 1;
+        
+        if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
+            maxPlayerHealth = 1;
+        else
+            maxPlayerHealth = 5;
+            
+        playerHealth = maxPlayerHealth;
+        helmetDurability = 0;
         hasHelmet = false;
         hasLeftScreen = false;
         if (helmetDisplay != null)
             helmetDisplay.SetActive(false);
+
+        isMagnetActive = false;
+        magnetDurationRemaining = 0f;
+        if (cornMagnetDisplay != null)
+            cornMagnetDisplay.SetActive(false);
     }
 
     private void Update()
@@ -72,12 +118,33 @@ public class Player : MonoBehaviour
             (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) ||
             (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
 
-        if (flap)
-            direction = Vector3.up * strength;
+        if (flap && !isKnockedBack)
+        {
+            if (transform.position.y <= screenTop-1.5f)
+            {
+                AudioManager.Instance?.PlayWingFlap();
+                direction = Vector3.up * strength;
+            }
+        }
 
-        direction.y += gravity * Time.deltaTime;
-        transform.position += direction * Time.deltaTime;
+        if (isKnockedBack)
+        {
+            transform.position += knockbackVelocity * Time.deltaTime;
+        }
+        else
+        {
+            direction.y += gravity * Time.deltaTime;
+            Vector3 movementThisFrame = direction * Time.deltaTime;
+            movementThisFrame.x += boostVelocityX * Time.deltaTime;
+            transform.position += movementThisFrame;
+            
+            if (boostTimeRemaining > 0f)
+                boostTimeRemaining -= Time.deltaTime;
+            else
+                boostVelocityX = 0f;
+        }
 
+        UpdateCornMagnet();
         CheckOffScreenAndTriggerDefense();
     }
 
@@ -130,20 +197,62 @@ public class Player : MonoBehaviour
 
     private void TakeDamage()
     {
-        health--;
-        GameManager.OnPlayerDamaged(health);
+        if (isInvulnerable)
+            return;
 
-        if (health == 1)
+        if (helmetDurability > 0)
         {
-            hasHelmet = false;
-            if (helmetDisplay != null)
-                helmetDisplay.SetActive(false);
+            helmetDurability--;
+            GameManager.OnPlayerDamaged(helmetDurability);
+            
+            if (helmetDurability == 0)
+            {
+                hasHelmet = false;
+                if (helmetDisplay != null)
+                    helmetDisplay.SetActive(false);
+            }
+            ApplyDamageInvulnerability();
         }
+        else
+        {
+            if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
+            {
+                GameManager.GameOver();
+                AudioManager.Instance?.PlayDie();
+                return;
+            }
 
-        if (health <= 0)
-        {
-            GameManager.GameOver();
+            if (GameManager.CurrentGameMode == GameManager.GameMode.Iowa)
+            {
+                ApplyKnockback();
+            }
+
+            playerHealth--;
+            GameManager.OnPlayerDamaged(helmetDurability);
+
+            if (playerHealth <= 0)
+            {
+                GameManager.GameOver();
+                AudioManager.Instance?.PlayDie();
+            }
+            else
+            {
+                ApplyDamageInvulnerability();
+            }
         }
+    }
+
+    private void ApplyKnockback()
+    {
+        isKnockedBack = true;
+        knockbackVelocity = Vector3.left * KNOCKBACK_SPEED;
+        Invoke(nameof(EndKnockback), KNOCKBACK_DURATION);
+    }
+
+    private void EndKnockback()
+    {
+        isKnockedBack = false;
+        knockbackVelocity = Vector3.zero;
     }
 
     private void HandleCollectible(GameObject collectible)
@@ -158,23 +267,229 @@ public class Player : MonoBehaviour
 
     public void GainHealth(int amount)
     {
-        health = Mathf.Min(health + amount, maxHealth);
-        if (health > 1)
+        playerHealth = Mathf.Min(playerHealth + amount, maxPlayerHealth);
+        GameManager.OnPlayerHealed(playerHealth);
+        ApplyHealthInvulnerability();
+    }
+
+    public void GainHelmet(int amount)
+    {
+        helmetDurability = Mathf.Min(helmetDurability + amount, maxHelmetDurability);
+        if (helmetDurability > 0)
         {
             hasHelmet = true;
             if (helmetDisplay != null)
                 helmetDisplay.SetActive(true);
         }
-        GameManager.OnPlayerHealed(health);
+        GameManager.OnPlayerHealed(helmetDurability);
     }
 
 
 private void DieToGround()
 {
     Debug.Log("[Player] Ground hit — instant death.");
+    AudioManager.Instance?.PlayDie();
     GameManager.GameOver();  // bypass helmet/health entirely
 }
 
-    public int GetHealth() => health;
-    public int GetMaxHealth() => maxHealth;
+    public void ApplyHorizontalBoost(float distance, float speed)
+    {
+        boostVelocityX = speed;
+        boostTimeRemaining += distance / speed;
+        ApplyBoostInvulnerability();
+    }
+
+    private void ApplyDamageInvulnerability()
+    {
+        if (colorAnimationCoroutine != null)
+            StopCoroutine(colorAnimationCoroutine);
+        
+        isInvulnerable = true;
+        colorAnimationCoroutine = StartCoroutine(AnimateColorGradient(Color.black, INVULNERABILITY_DURATION));
+    }
+
+    private void ApplyBoostInvulnerability()
+    {
+        if (colorAnimationCoroutine != null)
+            StopCoroutine(colorAnimationCoroutine);
+        
+        isInvulnerable = true;
+        colorAnimationCoroutine = StartCoroutine(AnimateRainbowCycle(INVULNERABILITY_DURATION));
+    }
+
+    private void ApplyHealthInvulnerability()
+    {
+        if (colorAnimationCoroutine != null)
+            StopCoroutine(colorAnimationCoroutine);
+        
+        isInvulnerable = true;
+        colorAnimationCoroutine = StartCoroutine(AnimateRainbowCycle(INVULNERABILITY_DURATION));
+    }
+
+    private IEnumerator AnimateColorGradient(Color targetColor, float duration)
+    {
+        float elapsed = 0f;
+        float halfDuration = duration / 2f;
+        
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / halfDuration;
+            
+            if (t <= 1f)
+            {
+                spriteRenderer.color = Color.Lerp(originalColor, targetColor, t);
+            }
+            else
+            {
+                float returnT = (t - 1f);
+                spriteRenderer.color = Color.Lerp(targetColor, originalColor, returnT);
+            }
+            
+            yield return null;
+        }
+        
+        spriteRenderer.color = originalColor;
+        isInvulnerable = false;
+    }
+
+    private IEnumerator AnimateRainbowCycle(float duration)
+    {
+        Color[] rainbowColors = new Color[]
+        {
+            Color.red,
+            new Color(1f, 1f, 0f),
+            Color.green,
+            Color.cyan,
+            Color.blue,
+            new Color(1f, 0f, 1f)
+        };
+
+        float elapsed = 0f;
+        int colorIndex = 0;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float cycleProgress = (elapsed / duration) * rainbowColors.Length;
+            
+            colorIndex = (int)cycleProgress % rainbowColors.Length;
+            int nextColorIndex = (colorIndex + 1) % rainbowColors.Length;
+            
+            float colorLerpT = cycleProgress - (int)cycleProgress;
+            spriteRenderer.color = Color.Lerp(rainbowColors[colorIndex], rainbowColors[nextColorIndex], colorLerpT);
+            
+            yield return null;
+        }
+
+        spriteRenderer.color = originalColor;
+        isInvulnerable = false;
+    }
+
+    public void ActivateCornMagnet(float duration)
+    {
+        bool wasAlreadyActive = isMagnetActive;
+        
+        magnetDurationRemaining += duration;
+        magnetTotalDuration = magnetDurationRemaining;
+        isMagnetActive = true;
+
+        if (!wasAlreadyActive)
+        {
+            CreateMagnetVisual();
+            Spawner spawner = FindObjectOfType<Spawner>();
+            if (spawner != null)
+                spawner.ActivateProbabilityBoost();
+        }
+        else if (magnetSpriteRenderer != null)
+        {
+            Color magnetColor = magnetSpriteRenderer.color;
+            magnetColor.a = 1f;
+            magnetSpriteRenderer.color = magnetColor;
+        }
+    }
+
+    private void CreateMagnetVisual()
+    {
+        if (cornMagnetDisplay == null)
+            return;
+
+        cornMagnetDisplay.SetActive(true);
+        
+        if (magnetSpriteRenderer != null)
+        {
+            Color magnetColor = magnetSpriteRenderer.color;
+            magnetColor.a = 1f;
+            magnetSpriteRenderer.color = magnetColor;
+        }
+    }
+
+    private void UpdateCornMagnet()
+    {
+        if (!isMagnetActive)
+            return;
+
+        magnetDurationRemaining -= Time.deltaTime;
+
+        if (magnetDurationRemaining <= 0f)
+        {
+            isMagnetActive = false;
+            if (cornMagnetDisplay != null)
+                cornMagnetDisplay.SetActive(false);
+
+            Spawner spawner = FindObjectOfType<Spawner>();
+            if (spawner != null)
+                spawner.DeactivateProbabilityBoost();
+        }
+        else
+        {
+            float timeUntilFade = magnetDurationRemaining - MAGNET_FADE_START_TIME;
+            
+            if (cornMagnetDisplay != null && magnetSpriteRenderer != null)
+            {
+                if (timeUntilFade <= 0f)
+                {
+                    float fadeProgress = (MAGNET_FADE_START_TIME - magnetDurationRemaining) / MAGNET_FADE_START_TIME;
+                    Color magnetColor = magnetSpriteRenderer.color;
+                    magnetColor.a = Mathf.Lerp(1f, 0f, fadeProgress);
+                    magnetSpriteRenderer.color = magnetColor;
+                }
+                else
+                {
+                    Color magnetColor = magnetSpriteRenderer.color;
+                    magnetColor.a = 1f;
+                    magnetSpriteRenderer.color = magnetColor;
+                }
+            }
+
+            AutoCollectCornKernels();
+        }
+    }
+
+    private void AutoCollectCornKernels()
+{
+    // How close in X we consider "the same x coordinate"
+    const float xEpsilon = 0.05f;
+
+    CornKernel[] allCornKernels = FindObjectsOfType<CornKernel>();
+
+    foreach (CornKernel kernel in allCornKernels)
+    {
+        float xDiff = Mathf.Abs(kernel.transform.position.x - transform.position.x);
+
+        // "Same x" within a small tolerance, ignore Y so any kernel that passes that x is grabbed
+        if (xDiff <= xEpsilon)
+        {
+            kernel.Collect(this);
+            Destroy(kernel.gameObject);
+        }
+    }
+}
+
+    public bool IsMagnetActive() => isMagnetActive;
+
+    public int GetHealth() => playerHealth;
+    public int GetMaxHealth() => maxPlayerHealth;
+    public int GetHelmetDurability() => helmetDurability;
+    public int GetMaxHelmetDurability() => maxHelmetDurability;
 }

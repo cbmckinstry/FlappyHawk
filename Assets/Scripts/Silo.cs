@@ -8,13 +8,13 @@ public class Silo : MonoBehaviour
 
     private void OnEnable()
     {
-        moveSpeed = GameManager.CurrentPipeSpeed;
-        GameManager.OnPipeSpeedChanged += OnSpeedChanged;
+        moveSpeed = GameManager.CurrentScrollSpeed;
+        GameManager.OnScrollSpeedChanged += OnSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= OnSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= OnSpeedChanged;
     }
 
     private void OnSpeedChanged(float s) => moveSpeed = s;

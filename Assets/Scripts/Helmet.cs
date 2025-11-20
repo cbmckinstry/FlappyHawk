@@ -8,16 +8,16 @@ public class Helmet : MonoBehaviour, ICollectible
 
     private void OnEnable()
     {
-        // Sync with global pipe speed
-        moveSpeed = GameManager.CurrentPipeSpeed;
+        // Sync with global scroll speed
+        moveSpeed = GameManager.CurrentScrollSpeed;
 
-        // Subscribe for updates when pipe speed changes
-        GameManager.OnPipeSpeedChanged += HandleSpeedChanged;
+        // Subscribe for updates when scroll speed changes
+        GameManager.OnScrollSpeedChanged += HandleSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandleSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandleSpeedChanged;
     }
 
     private void HandleSpeedChanged(float newSpeed)
@@ -38,7 +38,7 @@ public class Helmet : MonoBehaviour, ICollectible
 
     private void Update()
     {
-        // Move left with the global pipe speed
+        // Move left with the global scroll speed
         transform.position += Vector3.left * moveSpeed * Time.deltaTime;
 
         // Destroy when off-screen
@@ -48,6 +48,6 @@ public class Helmet : MonoBehaviour, ICollectible
 
     public void Collect(Player player)
     {
-        player.GainHealth(healthGain);
+        player.GainHelmet(healthGain);
     }
 }

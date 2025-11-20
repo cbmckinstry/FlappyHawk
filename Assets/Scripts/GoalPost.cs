@@ -10,15 +10,15 @@ public class GoalPost : MonoBehaviour
     private void OnEnable()
     {
         // Set initial speed from global GameManager
-        moveSpeed = GameManager.CurrentPipeSpeed;
+        moveSpeed = GameManager.CurrentScrollSpeed;
 
-        // Subscribe for updates when pipe speed changes
-        GameManager.OnPipeSpeedChanged += HandleSpeedChanged;
+        // Subscribe for updates when scroll speed changes
+        GameManager.OnScrollSpeedChanged += HandleSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandleSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandleSpeedChanged;
     }
 
     private void HandleSpeedChanged(float newSpeed)
@@ -61,7 +61,7 @@ public class GoalPost : MonoBehaviour
             Football carriedBall = FindFirstObjectByType<Football>();
             if (carriedBall != null && carriedBall.IsCarried())
             {
-                GameManager.IncreaseScore(6);
+                GameManager.IncreaseScore(7);
                 Destroy(carriedBall.gameObject);
                 hasScored = true;
                 TriggerDefenseRound();

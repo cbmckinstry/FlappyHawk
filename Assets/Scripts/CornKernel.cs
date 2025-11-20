@@ -8,16 +8,16 @@ public class CornKernel : MonoBehaviour, ICollectible
 
     private void OnEnable()
     {
-        // Sync with global pipe speed
-        moveSpeed = GameManager.CurrentPipeSpeed;
+        // Sync with global scroll speed
+        moveSpeed = GameManager.CurrentScrollSpeed;
 
-        // Subscribe to pipe speed changes for consistency
-        GameManager.OnPipeSpeedChanged += HandleSpeedChanged;
+        // Subscribe to scroll speed changes for consistency
+        GameManager.OnScrollSpeedChanged += HandleSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandleSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandleSpeedChanged;
     }
 
     private void HandleSpeedChanged(float newSpeed)
@@ -48,6 +48,8 @@ public class CornKernel : MonoBehaviour, ICollectible
 
     public void Collect(Player player)
     {
+        AudioManager.Instance?.PlayCornCollect();
+
         // Award points through global GameManager
         if (GameManager.IowaInstance != null)
             GameManager.IowaInstance.IncreaseScore(pointsValue);

@@ -6,7 +6,7 @@ using UnityEngine;
 /// </summary>
 public class CycloneBird : MonoBehaviour
 {
-    public float pipeSpeed = 4.5f;
+    public float scrollSpeed = 4.5f;
 
     [Header("Flight Pattern")]
     [SerializeField] private float bobAmplitude = 0.5f;     // How far up/down it bobs
@@ -25,21 +25,21 @@ public class CycloneBird : MonoBehaviour
 
     private void OnEnable()
     {
-        // Get the current pipe speed from the static bridge
-        pipeSpeed = GameManager.CurrentPipeSpeed;
+        // Get the current scroll speed from the static bridge
+        scrollSpeed = GameManager.CurrentScrollSpeed;
 
         // Subscribe to global speed updates
-        GameManager.OnPipeSpeedChanged += HandlePipeSpeedChanged;
+        GameManager.OnScrollSpeedChanged += HandlescrollSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandlePipeSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandlescrollSpeedChanged;
     }
 
-    private void HandlePipeSpeedChanged(float newSpeed)
+    private void HandlescrollSpeedChanged(float newSpeed)
     {
-        pipeSpeed = newSpeed;
+        scrollSpeed = newSpeed;
     }
 
     private void Start()
@@ -65,7 +65,7 @@ public class CycloneBird : MonoBehaviour
     private void Update()
     {
         // Move left with the game
-        transform.position += Vector3.left * pipeSpeed * Time.deltaTime;
+        transform.position += Vector3.left * scrollSpeed * Time.deltaTime;
 
         // Apply smooth bobbing motion
         UpdateBobbing();

@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 public class MainMenu : MonoBehaviour
 {
@@ -11,9 +13,90 @@ public class MainMenu : MonoBehaviour
     public GameObject howToPlayMenuPanel;
     public GameObject creditsMenuPanel;
 
+    private Button selectedButton;
+    private Button[] allButtons;
+
     private void PlayClick()
     {
         AudioManager.Instance?.PlayClickSound();
+    }
+
+    private void Start()
+    {
+        FindAllButtons();
+        SelectFirstButton();
+    }
+
+    private void FindAllButtons()
+    {
+        allButtons = FindObjectsOfType<Button>(includeInactive: true);
+    }
+
+    private void SelectFirstButton()
+    {
+        if (allButtons.Length > 0)
+        {
+            selectedButton = allButtons[0];
+            EventSystem.current.SetSelectedGameObject(selectedButton.gameObject);
+        }
+    }
+
+    private void Update()
+    {
+        if (!gameObject.activeInHierarchy)
+            return;
+
+        if (ControllerInputManager.Instance == null || !ControllerInputManager.Instance.IsControllerConnected())
+            return;
+
+        if (!IsButtonValid(selectedButton))
+        {
+            SelectFirstButton();
+            return;
+        }
+
+        Vector2 dpadInput = ControllerInputManager.Instance.GetMenuInputDPad();
+        Vector2 stickInput = ControllerInputManager.Instance.GetMenuInputLeftStick();
+        Vector2 input = dpadInput + stickInput;
+
+        if (input != Vector2.zero)
+        {
+            HandleMenuNavigation(input);
+        }
+
+        if (Input.GetButtonDown("Submit"))
+        {
+            if (selectedButton != null && IsButtonValid(selectedButton))
+                selectedButton.onClick.Invoke();
+        }
+    }
+
+    private bool IsButtonValid(Button button)
+    {
+        return button != null && button.gameObject != null && button.gameObject.scene.isLoaded;
+    }
+
+    private void HandleMenuNavigation(Vector2 direction)
+    {
+        if (!IsButtonValid(selectedButton))
+            return;
+
+        Selectable nextSelectable = null;
+
+        if (direction.y > 0)
+            nextSelectable = selectedButton?.FindSelectableOnUp();
+        else if (direction.y < 0)
+            nextSelectable = selectedButton?.FindSelectableOnDown();
+        else if (direction.x > 0)
+            nextSelectable = selectedButton?.FindSelectableOnRight();
+        else if (direction.x < 0)
+            nextSelectable = selectedButton?.FindSelectableOnLeft();
+
+        if (nextSelectable != null && nextSelectable is Button button && IsButtonValid(button))
+        {
+            selectedButton = button;
+            EventSystem.current.SetSelectedGameObject(button.gameObject);
+        }
     }
 
     // ---------------- MENU NAVIGATION ----------------
@@ -53,6 +136,10 @@ public class MainMenu : MonoBehaviour
     private void StartGame(GameManager.Difficulty difficulty, string sceneName, GameManager.GameDayDifficulty? gameDayDiff = null)
     {
         PlayClick();
+
+        // Clear UI selection before transitioning
+        EventSystem.current?.SetSelectedGameObject(null);
+        selectedButton = null;
 
         // Set Iowa difficulty
         GameManager.StartDifficulty = difficulty;

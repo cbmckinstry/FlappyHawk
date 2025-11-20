@@ -21,21 +21,21 @@ public class GameManager : MonoBehaviour
     public enum GameMode { Iowa, GameDay }
 
     // ============================= EVENTS =============================
-    public static event Action<float> OnPipeSpeedChanged
+    public static event Action<float> OnScrollSpeedChanged
     {
         add
         {
             if (IowaInstance != null)
-                IowaManager.OnPipeSpeedChanged += value;
+                IowaManager.OnScrollSpeedChanged += value;
             else if (GameDayInstance != null)
-                GameDayManager.OnPipeSpeedChanged += value;
+                GameDayManager.OnScrollSpeedChanged += value;
         }
         remove
         {
             if (IowaInstance != null)
-                IowaManager.OnPipeSpeedChanged -= value;
+                IowaManager.OnScrollSpeedChanged -= value;
             else if (GameDayInstance != null)
-                GameDayManager.OnPipeSpeedChanged -= value;
+                GameDayManager.OnScrollSpeedChanged -= value;
         }
     }
 
@@ -58,9 +58,9 @@ public class GameManager : MonoBehaviour
     }
 
     // ============================= PROPERTIES =============================
-    public static float CurrentPipeSpeed =>
-        IowaInstance != null ? IowaInstance.CurrentPipeSpeed :
-        GameDayInstance != null ? GameDayInstance.CurrentPipeSpeed : 5f;
+    public static float CurrentScrollSpeed =>
+        IowaInstance != null ? IowaInstance.CurrentScrollSpeed :
+        GameDayInstance != null ? GameDayInstance.CurrentScrollSpeed : 5f;
 
     public static float CurrentSpawnRate =>
         IowaInstance != null ? IowaInstance.CurrentSpawnRate :
@@ -103,9 +103,37 @@ public class GameManager : MonoBehaviour
         GameDayInstance?.IncreaseOpponentScore(amount);
     }
 
-    public static void RegisterPipe() => IowaInstance?.RegisterPipe();
-    public static void GameOver() => IowaInstance?.GameOver();
-    public static void OnPlayerDamaged(int remainingHealth) { }
-    public static void OnPlayerHealed(int newHealth) { }
+    public static void RegisterObstacle() => IowaInstance?.RegisterObstacle();
+
+    public static void GameOver()
+    {
+        if (IowaInstance != null)
+            IowaInstance.GameOver();
+        else if (GameDayInstance != null)
+            GameDayInstance.GameOver();
+    }
+
+    public static void OnPlayerDamaged(int helmetDurability)
+    {
+        IowaInstance?.OnPlayerDamaged(helmetDurability);
+        GameDayInstance?.OnPlayerDamaged(helmetDurability);
+    }
+
+    public static void OnPlayerHealed(int helmetDurability)
+    {
+        IowaInstance?.OnPlayerHealed(helmetDurability);
+        GameDayInstance?.OnPlayerHealed(helmetDurability);
+    }
+
+    public static bool IsGameActive()
+    {
+        if (IowaInstance != null)
+            return IowaInstance.IsGameActive();
+
+        if (GameDayInstance != null)
+            return GameDayInstance.IsGameActive();
+
+        return false;
+    }
 
 }

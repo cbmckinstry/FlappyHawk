@@ -6,7 +6,7 @@ using UnityEngine;
 /// </summary>
 public class EnemyBallCarrier : MonoBehaviour
 {
-    public float pipeSpeed = 4.5f;
+    public float scrollSpeed = 4.5f;
 
     [Header("Flight Pattern")]
     [SerializeField] private float bobAmplitude = 0.5f;
@@ -26,21 +26,21 @@ public class EnemyBallCarrier : MonoBehaviour
 
     private void OnEnable()
     {
-        // Use static bridge for current pipe speed
-        pipeSpeed = GameManager.CurrentPipeSpeed;
+        // Use static bridge for current scroll speed
+        scrollSpeed = GameManager.CurrentScrollSpeed;
 
         // Subscribe to difficulty/speed changes
-        GameManager.OnPipeSpeedChanged += HandlePipeSpeedChanged;
+        GameManager.OnScrollSpeedChanged += HandlescrollSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandlePipeSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandlescrollSpeedChanged;
     }
 
-    private void HandlePipeSpeedChanged(float newSpeed)
+    private void HandlescrollSpeedChanged(float newSpeed)
     {
-        pipeSpeed = newSpeed;
+        scrollSpeed = newSpeed;
     }
 
     private void Start()
@@ -67,7 +67,7 @@ public class EnemyBallCarrier : MonoBehaviour
     private void Update()
     {
         // Move left with the game
-        transform.position += Vector3.left * pipeSpeed * Time.deltaTime;
+        transform.position += Vector3.left * scrollSpeed * Time.deltaTime;
 
         // Optional bobbing motion
         bobTimer += Time.deltaTime * bobFrequency;

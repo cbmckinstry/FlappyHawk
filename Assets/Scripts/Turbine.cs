@@ -2,40 +2,55 @@ using UnityEngine;
 
 /// <summary>
 /// Turbine obstacle - rotates continuously while moving left.
-/// Uses the same global pipe speed as other obstacles via GameManager.
+/// Uses the same global scroll speed as other obstacles via GameManager.
 /// The "Blade" child object rotates while the parent moves left.
 /// </summary>
 public class Turbine : MonoBehaviour
 {
-    public float pipeSpeed = 4.5f;
-    [SerializeField] private float rotationSpeed = 360f; // degrees per second
+    public float scrollSpeed = 4.5f;
+    [SerializeField] private float rotationSpeed = 360f;
     private float currentRotation = 0f;
     private float leftEdge;
-    private Transform bladeTransform; // Reference to the "Blade" child
+    private Transform bladeTransform;
+    private int rotationDirection = 1;
 
     private void OnEnable()
     {
-        // Use current global pipe speed
-        pipeSpeed = GameManager.CurrentPipeSpeed;
-
-        // Subscribe for future difficulty/speed changes
-        GameManager.OnPipeSpeedChanged += HandlePipeSpeedChanged;
+        scrollSpeed = GameManager.CurrentScrollSpeed;
+        GameManager.OnScrollSpeedChanged += HandlescrollSpeedChanged;
+        SetRotationDirection();
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandlePipeSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandlescrollSpeedChanged;
     }
 
-    private void HandlePipeSpeedChanged(float newSpeed)
+    private void HandlescrollSpeedChanged(float newSpeed)
     {
-        pipeSpeed = newSpeed;
+        scrollSpeed = newSpeed;
+    }
+
+    private void SetRotationDirection()
+    {
+        var difficulty = GameManager.CurrentDifficulty;
+        switch (difficulty)
+        {
+            case GameManager.Difficulty.Easy:
+                rotationDirection = 1;
+                break;
+            case GameManager.Difficulty.Normal:
+                rotationDirection = -1;
+                break;
+            case GameManager.Difficulty.Hard:
+                rotationDirection = Random.Range(0, 2) == 0 ? -1 : 1;
+                break;
+        }
     }
 
     private void Start()
     {
-        // Ensure proper collision tag
-        gameObject.tag = "Obstacle";
+        gameObject.tag = "Untagged";
 
         if (Camera.main == null)
         {
@@ -45,30 +60,37 @@ public class Turbine : MonoBehaviour
 
         leftEdge = Camera.main.ScreenToWorldPoint(Vector3.zero).x - 1f;
 
-        // Find the "Blade" child for rotation animation
         bladeTransform = transform.Find("Blade");
         if (bladeTransform == null)
         {
             Debug.LogWarning("Turbine prefab missing 'Blade' child object! Rotation will not work.");
         }
+        else
+        {
+            bladeTransform.gameObject.tag = "Obstacle";
+            if (rotationDirection == -1)
+            {
+                currentRotation = 180f;
+                bladeTransform.rotation = Quaternion.AngleAxis(currentRotation, Vector3.forward);
+            }
+        }
     }
 
     private void Update()
     {
-        // Move left with the game
-        transform.position += Vector3.left * pipeSpeed * Time.deltaTime;
+        transform.position += Vector3.left * scrollSpeed * Time.deltaTime;
 
-        // Rotate only the blade
         if (bladeTransform != null)
         {
-            currentRotation += rotationSpeed * Time.deltaTime;
+            currentRotation += rotationSpeed * rotationDirection * Time.deltaTime;
             if (currentRotation >= 360f)
                 currentRotation -= 360f;
+            else if (currentRotation <= -360f)
+                currentRotation += 360f;
 
             bladeTransform.rotation = Quaternion.AngleAxis(currentRotation, Vector3.forward);
         }
 
-        // Destroy when off-screen
         if (transform.position.x < leftEdge)
             Destroy(gameObject);
     }

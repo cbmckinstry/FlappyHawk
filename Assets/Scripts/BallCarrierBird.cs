@@ -7,15 +7,19 @@ using UnityEngine;
 /// </summary>
 public class BallCarrierBird : MonoBehaviour
 {
-    public float pipeSpeed = 4.5f;
+    public float scrollSpeed = 4.5f;
 
     [Header("Flight Pattern")]
-    [SerializeField] private float bobAmplitude = 0.5f;     
+    [SerializeField] private float bobAmplitude = 0.5f;     // Vertical bob amplitude
     [SerializeField] private float bobFrequency = 1f;       // Speed of bobbing
 
     [Header("Animation")]
     [SerializeField] private Sprite[] flapSprites;
     [SerializeField] private float flapSpeed = 0.1f;
+
+    [Header("Ball")]
+    [SerializeField] private Sprite ballSprite;
+    private GameObject ballObject;
 
     private float leftEdge;
     private float startYPosition;
@@ -24,24 +28,25 @@ public class BallCarrierBird : MonoBehaviour
     private int currentFlapFrame = 0;
     private SpriteRenderer spriteRenderer;
     private bool hasBeenHit = false;
+    private bool hasDespawned = false;
 
     private void OnEnable()
     {
-        // Sync with global pipe speed
-        pipeSpeed = GameManager.CurrentPipeSpeed;
+        // Sync with global scroll speed
+        scrollSpeed = GameManager.CurrentScrollSpeed;
 
         // Subscribe to speed updates
-        GameManager.OnPipeSpeedChanged += HandlePipeSpeedChanged;
+        GameManager.OnScrollSpeedChanged += HandlescrollSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandlePipeSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandlescrollSpeedChanged;
     }
 
-    private void HandlePipeSpeedChanged(float newSpeed)
+    private void HandlescrollSpeedChanged(float newSpeed)
     {
-        pipeSpeed = newSpeed;
+        scrollSpeed = newSpeed;
     }
 
     private void Start()
@@ -72,7 +77,7 @@ public class BallCarrierBird : MonoBehaviour
     private void Update()
     {
         // Move left
-        transform.position += Vector3.left * pipeSpeed * Time.deltaTime;
+        transform.position += Vector3.left * scrollSpeed * Time.deltaTime;
 
         // Bob up and down slightly
         UpdateBobbing();
@@ -80,9 +85,11 @@ public class BallCarrierBird : MonoBehaviour
         // Animate wings
         UpdateFlapAnimation();
 
-        // Despawn if off-screen
-        if (transform.position.x < leftEdge)
+        // Despawn ONLY if off-screen on the left AND not already marked as despawned
+        if (!hasDespawned && transform.position.x < leftEdge)
         {
+            hasDespawned = true;
+            
             // Destroy all cyclone birds (reset screen)
             foreach (var bird in FindObjectsByType<CycloneBird>(FindObjectsSortMode.None))
                 Destroy(bird.gameObject);
@@ -121,7 +128,7 @@ public class BallCarrierBird : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (hasBeenHit) return;
+        if (hasBeenHit || hasDespawned) return;
 
         Player player = other.GetComponent<Player>();
         if (player != null)
@@ -141,5 +148,28 @@ public class BallCarrierBird : MonoBehaviour
         GameManager.GameDayInstance?.EndDefenseRound(true);
 
         Destroy(gameObject);
+    }
+
+    public void AttachBallSprite(Sprite sprite)
+    {
+        if (sprite == null)
+        {
+            Debug.LogWarning("[BallCarrierBird] Attempted to attach null sprite!");
+            return;
+        }
+
+        if (ballObject == null)
+        {
+            ballObject = new GameObject("Ball");
+            ballObject.transform.SetParent(transform);
+            ballObject.transform.localPosition = new Vector3(0f, -0.2f, -0.5f);
+            ballObject.transform.localScale = Vector3.one * 0.35f;
+
+            SpriteRenderer ballRenderer = ballObject.AddComponent<SpriteRenderer>();
+            ballRenderer.sprite = sprite;
+            ballRenderer.sortingOrder = 1;
+            
+            Debug.Log("[BallCarrierBird] Ball sprite attached successfully!");
+        }
     }
 }

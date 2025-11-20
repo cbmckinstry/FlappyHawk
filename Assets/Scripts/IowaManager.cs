@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 public class IowaManager : MonoBehaviour
 {
@@ -11,7 +12,6 @@ public class IowaManager : MonoBehaviour
 
     [Header("Scene References")]
     public Player player;
-    public TextMeshProUGUI scoreText;
     public GameObject playButton;
     public GameObject gameOver;
     public GameObject readyButton;
@@ -21,8 +21,13 @@ public class IowaManager : MonoBehaviour
     public Sprite normalSprite;
     public Sprite hardSprite;
 
+    // UI (internal labels)
+    [SerializeField] private TextMeshProUGUI scoreText;
+    [SerializeField] private TextMeshProUGUI helmetDurabilityText;
+    [SerializeField] private TextMeshProUGUI playerHealthText;
+
     [Header("Tuning")]
-    [SerializeField] private float pipeSpeed = 5f;
+    [SerializeField] private float scrollSpeed = 5f;
     [SerializeField] private float easySpawnRate = 1.15f;
     [SerializeField] private float normalSpawnRate = 1.00f;
     [SerializeField] private float hardSpawnRate = 0.85f;
@@ -33,15 +38,15 @@ public class IowaManager : MonoBehaviour
 
     public static GameManager.Difficulty StartDifficulty = GameManager.Difficulty.Easy;
 
-    public static event Action<float> OnPipeSpeedChanged;
+    public static event Action<float> OnScrollSpeedChanged;
     public static event Action<float> OnSpawnRateChanged;
 
-    public float CurrentPipeSpeed { get; private set; }
+    public float CurrentScrollSpeed { get; private set; }
     public float CurrentSpawnRate { get; private set; }
 
     private DateTime roundStartUtc;
     private float roundElapsed;
-    private int pipesSpawned;
+    private int obstaclesSpawned;
     private int jumps;
 
     private void Awake()
@@ -53,6 +58,11 @@ public class IowaManager : MonoBehaviour
 
         currentDifficulty = StartDifficulty;
         ApplyDifficulty();
+    }
+
+    private void Start()
+    {
+        SelectPlayButton();
     }
 
     private void Update()
@@ -75,7 +85,7 @@ public class IowaManager : MonoBehaviour
 {
     score = 0;
     scoreText.text = "0";
-    pipesSpawned = 0;
+    obstaclesSpawned = 0;
     jumps = 0;
     roundElapsed = 0f;
     roundStartUtc = DateTime.UtcNow;
@@ -89,13 +99,15 @@ public class IowaManager : MonoBehaviour
     Time.timeScale = 1f;
     player.enabled = true;
 
+    UpdateAllDisplays();
+
     // wipe old run’s spawned objects
     foreach (var obj in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
-        if (obj is Pipes or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or Football or GoalPost or BallCarrierBird)
+        if (obj is Obstacle or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or WindBoost or Football or GoalPost or BallCarrierBird)
             Destroy(obj.gameObject);
 
-    // >>> NEW: reset Game Day
-    var gdm = FindFirstObjectByType<GameDayManager>();
+        // >>> NEW: reset Game Day
+        var gdm = FindFirstObjectByType<GameDayManager>();
     if (gdm != null)
     {
         gdm.ResetScores();         // 0–out the UI right away
@@ -118,6 +130,25 @@ public class IowaManager : MonoBehaviour
         difficultyImage?.gameObject.SetActive(true);
         menuButton?.SetActive(true);
         Pause();
+        
+        SelectPlayButton();
+    }
+
+    private void SelectPlayButton()
+    {
+        Button button = playButton?.GetComponent<Button>();
+        if (button != null)
+        {
+            EventSystem.current?.SetSelectedGameObject(button.gameObject);
+        }
+    }
+
+    public bool IsGameActive()
+    {
+        // Game is active when:
+        // - Time is moving (not paused)
+        // - Player is enabled (not dead / not on title screen)
+        return Time.timeScale > 0f && player != null && player.enabled;
     }
 
     public void IncreaseScore(int amount = 1)
@@ -156,21 +187,69 @@ public class IowaManager : MonoBehaviour
                 break;
         }
 
-        CurrentPipeSpeed = pipeSpeed;
+        CurrentScrollSpeed = scrollSpeed;
         player.gravity = -9.8f;
         CurrentSpawnRate = spawnRate;
 
-        OnPipeSpeedChanged?.Invoke(pipeSpeed);
+        OnScrollSpeedChanged?.Invoke(scrollSpeed);
         OnSpawnRateChanged?.Invoke(spawnRate);
 
         if (difficultyImage != null)
             difficultyImage.sprite = currentSprite;
     }
 
-    public void RegisterPipe() => pipesSpawned++;
+    public void RegisterObstacle() => obstaclesSpawned++;
     public void RegisterJump() => jumps++;
 
+    private void UpdateHelmetDurabilityDisplay()
+    {
+        if (player == null)
+            player = FindObjectOfType<Player>();
+        if (helmetDurabilityText == null)
+        {
+            var obj = GameObject.Find("HelmetNumber");
+            if (obj != null)
+                helmetDurabilityText = obj.GetComponent<TextMeshProUGUI>();
+        }
 
+        if (player != null && helmetDurabilityText != null)
+        {
+            helmetDurabilityText.text = player.GetHelmetDurability().ToString();
+        }
+    }
+
+    private void UpdatePlayerHealthDisplay()
+    {
+        if (player == null)
+            player = FindObjectOfType<Player>();
+        if (playerHealthText == null)
+        {
+            var obj = GameObject.Find("HealthNumber");
+            if (obj != null)
+                playerHealthText = obj.GetComponent<TextMeshProUGUI>();
+        }
+
+        if (player != null && playerHealthText != null)
+        {
+            playerHealthText.text = player.GetHealth().ToString();
+        }
+    }
+
+    private void UpdateAllDisplays()
+    {
+        UpdateHelmetDurabilityDisplay();
+        UpdatePlayerHealthDisplay();
+    }
+
+    public void OnPlayerDamaged(int helmetDurability)
+    {
+        UpdateAllDisplays();
+    }
+
+    public void OnPlayerHealed(int helmetDurability)
+    {
+        UpdateAllDisplays();
+    }
 
 public void ReturnToMainMenu()
 {

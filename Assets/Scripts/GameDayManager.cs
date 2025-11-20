@@ -1,46 +1,67 @@
-using UnityEngine;
-using TMPro;
 using System;
+using TMPro;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using System.Collections;
 
 public class GameDayManager : MonoBehaviour
 {
-    // Singleton
     public static GameDayManager Instance { get; private set; }
 
-    // Bridge events (kept for compatibility)
-    public static event Action<float> OnPipeSpeedChanged;
-    public static event Action<float> OnSpawnRateChanged;
+    [Header("Scene References")]
+    public Player player;
+    public GameObject playButton;
+    public GameObject gameOver;
+    public GameObject readyButton;
+    public GameObject menuButton;
+    public Image difficultyImage;
+    public Sprite collegeSprite;
+    public Sprite proSprite;
 
-    // Tunables (kept for compatibility)
-    public float CurrentPipeSpeed { get; private set; } = 5f;
-    public float CurrentSpawnRate { get; private set; } = 1.2f;
-    public GameManager.GameDayDifficulty CurrentGameDayDifficulty { get; private set; } =
-        GameManager.GameDayDifficulty.College;
-
-    // ================== UI ==================
-    [Header("UI")]
+    // UI (internal labels)
     [SerializeField] private TextMeshProUGUI modeText;
-    [SerializeField] private TextMeshProUGUI playerScoreText;  // Player score label
-    [SerializeField] private TextMeshProUGUI enemyScoreText;   // Enemy score label
+    [SerializeField] private TextMeshProUGUI playerScoreText;
+    [SerializeField] private TextMeshProUGUI enemyScoreText;
+    [SerializeField] private TextMeshProUGUI helmetDurabilityText;
+    [SerializeField] private TextMeshProUGUI playerHealthText;
 
-    // ================== Settings ==================
-    [Header("Settings")]
+    [Header("Tuning")]
+    [SerializeField] private float scrollSpeed = 5f;
+    [SerializeField] private float collegeSpawnRate = 1.10f;
+    [SerializeField] private float proSpawnRate = 0.90f;
+
+    [Header("GameDay Settings")]
     public float goalPostSpawnX = 12f;
     public float defenseRoundDuration = 10f;
 
-    // ================== Round State ==================
+    // Difficulty + events
+    public GameManager.GameDayDifficulty CurrentGameDayDifficulty { get; private set; } =
+        GameManager.GameDayDifficulty.College;
+
+    public static event Action<float> OnScrollSpeedChanged;
+    public static event Action<float> OnSpawnRateChanged;
+
+    public float CurrentScrollSpeed { get; private set; } = 5f;
+    public float CurrentSpawnRate { get; private set; } = 1.2f;
+
+    // Round/score state
     private bool inDefenseRound = false;
     private bool isSpawningPaused = false;
     private bool ballCarrierSpawning = false;
     public bool InDefenseRound => inDefenseRound;
 
-    // ================== References ==================
     private Spawner spawner;
-
-    // ================== Scores ==================
     private int playerScore = 0;
-    private int enemyScore  = 0;
+    private int enemyScore = 0;
+
+    private DateTime roundStartUtc;
+    private float roundElapsed;
+    private int obstaclesSpawned;
+    private int jumps;
+
 
     // -------------------- Unity Lifecycle --------------------
     private void Awake()
@@ -51,17 +72,24 @@ public class GameDayManager : MonoBehaviour
         // Load saved difficulty if available
         if (PlayerPrefs.HasKey("GameDayDifficulty"))
             CurrentGameDayDifficulty = (GameManager.GameDayDifficulty)PlayerPrefs.GetInt("GameDayDifficulty");
+
+        gameOver?.SetActive(false);
+        Pause();
     }
 
-  private void OnEnable()
-{
-    spawner = FindObjectOfType<Spawner>();
-    UpdateModeDisplay();
+    private void OnEnable()
+    {
+        spawner = FindObjectOfType<Spawner>();
+        UpdateModeDisplay();
 
-    // <<< Force a true reset on load >>>
-    ResetScores();                  // sets both scores = 0 and updates UI
-}
+        // <<< Force a true reset on load >>>
+        ResetScores();                  // sets both scores = 0 and updates UI
+    }
 
+    private void Start()
+    {
+        SelectPlayButton();
+    }
 
     private void Update()
     {
@@ -88,16 +116,16 @@ public class GameDayManager : MonoBehaviour
     }
 
     private void SetEnemyScoreUI(int value)
-{
-    if (enemyScoreText == null)
-        enemyScoreText = FindObjectOfType<TextMeshProUGUI>(true); // or Find by name/tag you use
-
-    if (enemyScoreText != null)
     {
-        enemyScoreText.text = value.ToString();
-        if (!enemyScoreText.gameObject.activeSelf) enemyScoreText.gameObject.SetActive(true);
+        if (enemyScoreText == null)
+            enemyScoreText = FindObjectOfType<TextMeshProUGUI>(true); // or Find by name/tag you use
+
+        if (enemyScoreText != null)
+        {
+            enemyScoreText.text = value.ToString();
+            if (!enemyScoreText.gameObject.activeSelf) enemyScoreText.gameObject.SetActive(true);
+        }
     }
-}
 
 
     // -------------------- Queries (used by Spawner/etc.) --------------------
@@ -128,8 +156,10 @@ public class GameDayManager : MonoBehaviour
         // Centralize enemy scoring for defense failure HERE
         if (!playerWon)
         {
-            enemyScore += 3;
+            int pointsScored = UnityEngine.Random.value < 0.7f ? 3 : 7;
+            enemyScore += pointsScored;
             SetEnemyScoreUI(enemyScore);
+            Debug.Log($"[GameDayManager] Opponent scored {pointsScored}. Opponent total: {enemyScore}");
         }
 
         // Reset offense drive state for next wave/ball
@@ -171,7 +201,7 @@ public class GameDayManager : MonoBehaviour
     /// <summary>
     /// Enemy scoring (turnovers, defense failures, etc.)
     /// </summary>
-    public void IncreaseOpponentScore(int amount = 3)
+    public void IncreaseOpponentScore(int amount = 1)
     {
         if (amount <= 0) return;
         enemyScore += amount;
@@ -182,12 +212,19 @@ public class GameDayManager : MonoBehaviour
     /// <summary>
     /// Player scoring. Kept name to match existing calls in Spawner/Football.
     /// </summary>
-    public void IncreaseScore(int amount = 6)
+    public void IncreaseScore(int amount = 1)
     {
         if (amount <= 0) return;
         playerScore += amount;
         SetPlayerScoreUI(playerScore);
         Debug.Log($"[GameDayManager] Player scored {amount}. Player total: {playerScore}");
+
+        // Play different sounds depending on score type
+        if (amount == 7)
+            AudioManager.Instance?.PlayTouchdown();
+        else if (amount == 3)
+            AudioManager.Instance?.PlayFieldGoal();
+
     }
 
     /// <summary>
@@ -196,7 +233,7 @@ public class GameDayManager : MonoBehaviour
     public void ResetScores()
     {
         playerScore = 0;
-        enemyScore  = 0;
+        enemyScore = 0;
         SetPlayerScoreUI(playerScore);
         SetEnemyScoreUI(enemyScore);
     }
@@ -205,22 +242,23 @@ public class GameDayManager : MonoBehaviour
     /// Call this when the player dies (from GameManager or Player).
     /// Fully resets scores and spawner/round flags so the next life starts clean.
     /// </summary>
-public void OnPlayerDeathReset()
-{
-    // Reset scores
-    ResetScores();
+    public void OnPlayerDeathReset()
+    {
+        // Reset scores
+        ResetScores();
 
-    // Clear round/spawn flags
-    inDefenseRound = false;
-    ballCarrierSpawning = false;
-    isSpawningPaused = false;
+        // Clear round/spawn flags
+        inDefenseRound = false;
+        ballCarrierSpawning = false;
+        isSpawningPaused = false;
 
-    // Reset spawner fully so offense can start again
-    if (spawner != null)
-        spawner.ResetSpawner();
-}
-
-
+        // Clear all actors (birds, balls, carriers)
+        if (spawner != null)
+        {
+            spawner.ClearAllGameDayActors();
+            spawner.ResetSpawner();
+        }
+    }
 
     // -------------------- Difficulty --------------------
     public void SetGameDayDifficulty(GameManager.GameDayDifficulty diff)
@@ -231,10 +269,10 @@ public void OnPlayerDeathReset()
     }
 
     // -------------------- Optional broadcasters (if you ever change speeds) --------------------
-    public void SetPipeSpeed(float speed)
+    public void SetScrollSpeed(float speed)
     {
-        CurrentPipeSpeed = Mathf.Max(0f, speed);
-        OnPipeSpeedChanged?.Invoke(CurrentPipeSpeed);
+        CurrentScrollSpeed = Mathf.Max(0f, speed);
+        OnScrollSpeedChanged?.Invoke(CurrentScrollSpeed);
     }
 
     public void SetSpawnRate(float rate)
@@ -243,5 +281,145 @@ public void OnPlayerDeathReset()
         OnSpawnRateChanged?.Invoke(CurrentSpawnRate);
     }
 
-    
+    public bool IsGameActive()
+    {
+        // If you ever add a pause menu, this will correctly detect it.
+        return !isSpawningPaused || inDefenseRound;
+    }
+
+
+    // =========================================================
+    // ==========  NEW METHODS FOR STANDALONE GAMEDAY ==========
+    // =========================================================
+
+    private void ApplyDifficulty()
+    {
+        float spawnRate;
+        Sprite spriteToUse;
+
+        switch (CurrentGameDayDifficulty)
+        {
+            case GameManager.GameDayDifficulty.Pro:
+                spawnRate = proSpawnRate;
+                spriteToUse = proSprite;
+                break;
+            default:
+                spawnRate = collegeSpawnRate;
+                spriteToUse = collegeSprite;
+                break;
+        }
+
+        CurrentScrollSpeed = scrollSpeed;
+        CurrentSpawnRate = spawnRate;
+        OnScrollSpeedChanged?.Invoke(scrollSpeed);
+        OnSpawnRateChanged?.Invoke(spawnRate);
+
+        if (difficultyImage != null)
+            difficultyImage.sprite = spriteToUse;
+    }
+
+    public void Play()
+    {
+        player.enabled = true;
+        playButton?.SetActive(false);
+        gameOver?.SetActive(false);
+        readyButton?.SetActive(false);
+        menuButton?.SetActive(false);
+        difficultyImage?.gameObject.SetActive(false);
+
+        Time.timeScale = 1f;
+
+        ResetScores();
+        OnPlayerDeathReset();
+        UpdateAllDisplays();
+
+        ApplyDifficulty();
+    }
+
+    public void GameOver()
+    {
+        gameOver?.SetActive(true);
+        playButton?.SetActive(true);
+        readyButton?.SetActive(false);
+        difficultyImage?.gameObject.SetActive(true);
+        menuButton?.SetActive(true);
+
+        if (spawner != null)
+            spawner.ClearAllGameDayActors();
+
+        Pause();
+        SelectPlayButton();
+    }
+
+    private void SelectPlayButton()
+    {
+        Button button = playButton?.GetComponent<Button>();
+        if (button != null)
+        {
+            EventSystem.current?.SetSelectedGameObject(button.gameObject);
+        }
+    }
+
+    public void Pause()
+    {
+        Time.timeScale = 0f;
+        player.enabled = false;
+    }
+
+    private void UpdateHelmetDurabilityDisplay()
+    {
+        if (player == null)
+            player = FindObjectOfType<Player>();
+        if (helmetDurabilityText == null)
+        {
+            var obj = GameObject.Find("HelmetNumber");
+            if (obj != null)
+                helmetDurabilityText = obj.GetComponent<TextMeshProUGUI>();
+        }
+
+        if (player != null && helmetDurabilityText != null)
+        {
+            helmetDurabilityText.text = player.GetHelmetDurability().ToString();
+        }
+    }
+
+    private void UpdatePlayerHealthDisplay()
+    {
+        if (player == null)
+            player = FindObjectOfType<Player>();
+        if (playerHealthText == null)
+        {
+            var obj = GameObject.Find("HealthNumber");
+            if (obj != null)
+                playerHealthText = obj.GetComponent<TextMeshProUGUI>();
+        }
+
+        if (player != null && playerHealthText != null)
+        {
+            playerHealthText.text = player.GetHealth().ToString();
+        }
+    }
+
+    private void UpdateAllDisplays()
+    {
+        UpdateHelmetDurabilityDisplay();
+        UpdatePlayerHealthDisplay();
+    }
+
+    public void OnPlayerDamaged(int helmetDurability)
+    {
+        UpdateAllDisplays();
+    }
+
+    public void OnPlayerHealed(int helmetDurability)
+    {
+        UpdateAllDisplays();
+    }
+
+    public void ReturnToMainMenu()
+    {
+        AudioManager.Instance?.PlayClickSound();
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("MenuScreen");
+    }
 }

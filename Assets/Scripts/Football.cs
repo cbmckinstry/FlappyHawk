@@ -8,6 +8,8 @@ public class Football : MonoBehaviour
     private Vector3 carryOffset = Vector3.zero;
     public float moveSpeed = 4.5f;
     private float leftEdge;
+    private float dropInvulnerabilityTimer = 0f;
+    private const float DROP_INVULNERABILITY_DURATION = 0.5f;
 
     // Screen bounds for off-screen detection
     private float screenLeft;
@@ -17,16 +19,16 @@ public class Football : MonoBehaviour
 
     private void OnEnable()
     {
-        // Sync with global pipe speed
-        moveSpeed = GameManager.CurrentPipeSpeed;
+        // Sync with global scroll speed
+        moveSpeed = GameManager.CurrentScrollSpeed;
 
         // Subscribe to global speed changes
-        GameManager.OnPipeSpeedChanged += HandleSpeedChanged;
+        GameManager.OnScrollSpeedChanged += HandleSpeedChanged;
     }
 
     private void OnDisable()
     {
-        GameManager.OnPipeSpeedChanged -= HandleSpeedChanged;
+        GameManager.OnScrollSpeedChanged -= HandleSpeedChanged;
     }
 
     private void HandleSpeedChanged(float newSpeed)
@@ -58,6 +60,9 @@ public class Football : MonoBehaviour
 
     private void Update()
     {
+        if (dropInvulnerabilityTimer > 0f)
+            dropInvulnerabilityTimer -= Time.deltaTime;
+
         if (isCarried && player != null)
         {
             // Follow player
@@ -77,8 +82,11 @@ public class Football : MonoBehaviour
                 return;
             }
 
-            // Drop football manually with 'E'
-            if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+            // Drop football manually with 'E' or controller bumpers
+            bool dropKey = Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
+            bool dropController = ControllerInputManager.Instance != null && ControllerInputManager.Instance.IsBallDropPressed();
+            
+            if (dropKey || dropController)
                 Drop();
         }
         else
@@ -119,7 +127,7 @@ public class Football : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (!isCarried && other.CompareTag("Player"))
+        if (!isCarried && other.CompareTag("Player") && dropInvulnerabilityTimer <= 0f)
         {
             player = other.GetComponent<Player>();
             if (player != null)
@@ -137,6 +145,7 @@ public class Football : MonoBehaviour
     public void Drop()
 {
     isCarried = false;
+    dropInvulnerabilityTimer = DROP_INVULNERABILITY_DURATION;
 
     if (player != null)
     {
@@ -145,15 +154,13 @@ public class Football : MonoBehaviour
             rb = gameObject.AddComponent<Rigidbody2D>();
 
         rb.bodyType = RigidbodyType2D.Dynamic;
-        rb.gravityScale = 2.0f; // slightly stronger gravity so it falls faster
+        rb.gravityScale = 1.5f;
 
-        // Reset any old velocity
         rb.linearVelocity = Vector2.zero;
 
-        // Apply a small forward-and-downward impulse
-        float forwardForce = 3f;  // adjust as needed
-        float downwardForce = 2f; // adjust as needed
-        Vector2 dropDirection = new Vector2(1.5f, -1f).normalized;
+        float forwardForce = 3f;
+        float downwardForce = 2f;
+        Vector2 dropDirection = new Vector2(1f, -1f).normalized;
 
         rb.AddForce(dropDirection * new Vector2(forwardForce, downwardForce).magnitude, ForceMode2D.Impulse);
     }

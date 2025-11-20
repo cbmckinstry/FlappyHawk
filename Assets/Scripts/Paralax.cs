@@ -7,10 +7,10 @@ public class Parallax : MonoBehaviour
     private Material mat;
 
     [Header("Behavior")]
-    [Tooltip("If true, this layer moves exactly with pipes (use for ground).")]
-    public bool matchPipesExactly = true;
+    [Tooltip("If true, this layer moves exactly with obstacles (use for ground).")]
+    public bool matchObstaclesExactly = true;
 
-    [Tooltip("For background layers: fraction of pipe speed (ignored if matchPipesExactly).")]
+    [Tooltip("For background layers: fraction of scroll speed (ignored if matchObstaclesExactly).")]
     [Range(0f, 1f)] public float parallaxRatio = 0.25f;
 
     [Tooltip("Scroll direction. Usually 1 for left movement, -1 to flip.")]
@@ -34,16 +34,16 @@ public class Parallax : MonoBehaviour
         CalibrateUvPerWorldUnit();
 
         // Subscribe to speed updates
-        GameManager.OnPipeSpeedChanged += HandlePipeSpeedChange;
+        GameManager.OnScrollSpeedChanged += HandleScrollSpeedChange;
 
-        // Initialize immediately from current pipe speed (global)
-        float currentSpeed = GameManager.CurrentPipeSpeed;
-        HandlePipeSpeedChange(currentSpeed);
+        // Initialize immediately from current scroll speed (global)
+        float currentSpeed = GameManager.CurrentScrollSpeed;
+        HandleScrollSpeedChange(currentSpeed);
     }
 
     private void OnDestroy()
     {
-        GameManager.OnPipeSpeedChanged -= HandlePipeSpeedChange;
+        GameManager.OnScrollSpeedChanged -= HandleScrollSpeedChange;
     }
 
     private void Update()
@@ -70,10 +70,10 @@ public class Parallax : MonoBehaviour
         uvPerWorldUnit = tilingX / worldWidth;
     }
 
-    private void HandlePipeSpeedChange(float pipeSpeed)
+    private void HandleScrollSpeedChange(float scrollSpeed)
     {
         // Convert world speed to UV scroll speed
         float worldToUV = uvPerWorldUnit > 0f ? uvPerWorldUnit : 0.001f;
-        uvSpeed = pipeSpeed * worldToUV * (matchPipesExactly ? 1f : parallaxRatio);
+        uvSpeed = scrollSpeed * worldToUV * (matchObstaclesExactly ? 1f : parallaxRatio);
     }
 }
