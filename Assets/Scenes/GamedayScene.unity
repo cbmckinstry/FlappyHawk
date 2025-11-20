@@ -1963,8 +1963,8 @@ MonoBehaviour:
   proSprite: {fileID: 0}
   playerNameInput: {fileID: 1711922572}
   modeText: {fileID: 343688574}
-  playerScoreText: {fileID: 1505890702}
-  enemyScoreText: {fileID: 1047194763}
+  playerScoreText: {fileID: 1047194763}
+  enemyScoreText: {fileID: 1505890702}
   helmetDurabilityText: {fileID: 348348324}
   playerHealthText: {fileID: 0}
   scrollSpeed: 5

@@ -97,6 +97,19 @@ public class GameDayManager : MonoBehaviour
     private void Update()
     {
         UpdateModeDisplay();
+
+        if (player != null && player.enabled && Time.timeScale > 0f)
+        {
+            roundElapsed += Time.unscaledDeltaTime;
+
+            bool jumpPressed =
+                (Keyboard.current?.spaceKey.wasPressedThisFrame ?? false) ||
+                (Mouse.current?.leftButton.wasPressedThisFrame ?? false) ||
+                (Gamepad.current?.buttonSouth.wasPressedThisFrame ?? false);
+
+            if (jumpPressed)
+                jumps++;
+        }
     }
 
     // -------------------- UI Helpers --------------------
@@ -285,6 +298,7 @@ public class GameDayManager : MonoBehaviour
         readyButton?.SetActive(false);
         difficultyImage?.gameObject.SetActive(true);
         menuButton?.SetActive(true);
+        modeText.gameObject.SetActive(false);
 
         spawner?.ClearAllGameDayActors();
 
