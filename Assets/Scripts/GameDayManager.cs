@@ -20,6 +20,7 @@ public class GameDayManager : MonoBehaviour
     public Image difficultyImage;
     public Sprite collegeSprite;
     public Sprite proSprite;
+    public TMP_InputField playerNameInput;
 
     // UI (internal labels)
     [SerializeField] private TextMeshProUGUI modeText;
@@ -37,7 +38,6 @@ public class GameDayManager : MonoBehaviour
     public float goalPostSpawnX = 12f;
     public float defenseRoundDuration = 10f;
 
-    // Difficulty + events
     public GameManager.GameDayDifficulty CurrentGameDayDifficulty { get; private set; } =
         GameManager.GameDayDifficulty.College;
 
@@ -62,6 +62,12 @@ public class GameDayManager : MonoBehaviour
     private int obstaclesSpawned;
     private int jumps;
 
+    // Logging counters 
+    private int offenseDrives = 0;
+    private int defenseRoundsWon = 0;
+    private int defenseRoundsFailed = 0;
+
+
 
     // -------------------- Unity Lifecycle --------------------
     private void Awake()
@@ -69,7 +75,6 @@ public class GameDayManager : MonoBehaviour
         if (Instance == null) Instance = this;
         else { Destroy(gameObject); return; }
 
-        // Load saved difficulty if available
         if (PlayerPrefs.HasKey("GameDayDifficulty"))
             CurrentGameDayDifficulty = (GameManager.GameDayDifficulty)PlayerPrefs.GetInt("GameDayDifficulty");
 
@@ -81,9 +86,7 @@ public class GameDayManager : MonoBehaviour
     {
         spawner = FindObjectOfType<Spawner>();
         UpdateModeDisplay();
-
-        // <<< Force a true reset on load >>>
-        ResetScores();                  // sets both scores = 0 and updates UI
+        ResetScores();
     }
 
     private void Start()
@@ -118,7 +121,7 @@ public class GameDayManager : MonoBehaviour
     private void SetEnemyScoreUI(int value)
     {
         if (enemyScoreText == null)
-            enemyScoreText = FindObjectOfType<TextMeshProUGUI>(true); // or Find by name/tag you use
+            enemyScoreText = FindObjectOfType<TextMeshProUGUI>(true);
 
         if (enemyScoreText != null)
         {
@@ -127,44 +130,46 @@ public class GameDayManager : MonoBehaviour
         }
     }
 
-
-    // -------------------- Queries (used by Spawner/etc.) --------------------
+    // -------------------- Queries --------------------
     public bool IsInDefenseRound() => inDefenseRound;
     public bool IsBallCarrierSpawningThisFrame() => ballCarrierSpawning;
     public bool IsSpawningPaused() => isSpawningPaused;
+
+    // *** ADDED BACK — required by GameManager ***
+    public bool IsGameActive()
+    {
+        return Time.timeScale > 0f && player != null && player.enabled;
+    }
+
 
     // -------------------- Flow Control --------------------
     public void StartDefenseRound()
     {
         if (inDefenseRound) return;
 
-        Debug.Log("[GameDayManager] Starting Defense Round...");
         inDefenseRound = true;
-        isSpawningPaused = false;   // allow spawner to run prep logic if needed
+        isSpawningPaused = false;
         StartCoroutine(DefenseRoundTimer());
     }
 
     public void EndDefenseRound(bool playerWon)
     {
-        Debug.Log($"[GameDayManager] Defense round ended. Player won? {playerWon}");
-
-        // Clear defense flags
         inDefenseRound = false;
         ballCarrierSpawning = false;
         isSpawningPaused = false;
 
-        // Centralize enemy scoring for defense failure HERE
-        if (!playerWon)
+        if (playerWon)
+            defenseRoundsWon++;
+        else
         {
+            defenseRoundsFailed++;
+
             int pointsScored = UnityEngine.Random.value < 0.7f ? 3 : 7;
             enemyScore += pointsScored;
             SetEnemyScoreUI(enemyScore);
-            Debug.Log($"[GameDayManager] Opponent scored {pointsScored}. Opponent total: {enemyScore}");
         }
 
-        // Reset offense drive state for next wave/ball
-        if (spawner != null)
-            spawner.ResetGameDayBall();
+        spawner?.ResetGameDayBall();
     }
 
     private IEnumerator DefenseRoundTimer()
@@ -172,92 +177,47 @@ public class GameDayManager : MonoBehaviour
         yield return new WaitForSeconds(defenseRoundDuration);
 
         if (inDefenseRound)
-        {
-            Debug.Log("[GameDayManager] Defense round timed out!");
-            EndDefenseRound(false); // counts as enemy point
-        }
+            EndDefenseRound(false);
     }
 
     public void OnBallCarrierSpawned()
     {
-        Debug.Log("[GameDayManager] Ball carrier spawned!");
         ballCarrierSpawning = true;
-        isSpawningPaused = true; // pause regular spawns while the carrier is active
+        isSpawningPaused = true;
+        offenseDrives++;
     }
 
     public void OnBallCarrierDespawned()
     {
-        // Do NOT score here to avoid double-count. Funnel to EndDefenseRound(false).
-        Debug.Log("[GameDayManager] Ball carrier despawned — defense failed.");
         EndDefenseRound(false);
     }
 
     public void OnWaveCompleted()
     {
-        Debug.Log("[GameDayManager] Wave completed!");
+        Debug.Log("[GameDay] Wave completed");
     }
 
     // -------------------- Scoring API --------------------
-    /// <summary>
-    /// Enemy scoring (turnovers, defense failures, etc.)
-    /// </summary>
     public void IncreaseOpponentScore(int amount = 1)
     {
         if (amount <= 0) return;
         enemyScore += amount;
         SetEnemyScoreUI(enemyScore);
-        Debug.Log($"[GameDayManager] Opponent scored {amount}. Enemy total: {enemyScore}");
     }
 
-    /// <summary>
-    /// Player scoring. Kept name to match existing calls in Spawner/Football.
-    /// </summary>
     public void IncreaseScore(int amount = 1)
     {
         if (amount <= 0) return;
         playerScore += amount;
         SetPlayerScoreUI(playerScore);
-        Debug.Log($"[GameDayManager] Player scored {amount}. Player total: {playerScore}");
-
-        // Play different sounds depending on score type
-        if (amount == 7)
-            AudioManager.Instance?.PlayTouchdown();
-        else if (amount == 3)
-            AudioManager.Instance?.PlayFieldGoal();
-
     }
 
-    /// <summary>
-    /// Reset only the numeric scores and update UI (does not touch round flags).
-    /// </summary>
     public void ResetScores()
     {
         playerScore = 0;
         enemyScore = 0;
-        SetPlayerScoreUI(playerScore);
-        SetEnemyScoreUI(enemyScore);
-    }
-
-    /// <summary>
-    /// Call this when the player dies (from GameManager or Player).
-    /// Fully resets scores and spawner/round flags so the next life starts clean.
-    /// </summary>
-    public void OnPlayerDeathReset()
-    {
-        // Reset scores
-        ResetScores();
-
-        // Clear round/spawn flags
-        inDefenseRound = false;
-        ballCarrierSpawning = false;
-        isSpawningPaused = false;
-
-        // Clear all actors (birds, balls, carriers)
-        if (spawner != null)
-        {
-            spawner.ClearAllGameDayActors();
-            spawner.ResetSpawner();
-        }
+        SetPlayerScoreUI(0);
+        SetEnemyScoreUI(0);
     }
 
     // -------------------- Difficulty --------------------
@@ -267,30 +227,6 @@ public class GameDayManager : MonoBehaviour
         PlayerPrefs.SetInt("GameDayDifficulty", (int)diff);
         PlayerPrefs.Save();
     }
-
-    // -------------------- Optional broadcasters (if you ever change speeds) --------------------
-    public void SetScrollSpeed(float speed)
-    {
-        CurrentScrollSpeed = Mathf.Max(0f, speed);
-        OnScrollSpeedChanged?.Invoke(CurrentScrollSpeed);
-    }
-
-    public void SetSpawnRate(float rate)
-    {
-        CurrentSpawnRate = Mathf.Max(0.05f, rate);
-        OnSpawnRateChanged?.Invoke(CurrentSpawnRate);
-    }
-
-    public bool IsGameActive()
-    {
-        // If you ever add a pause menu, this will correctly detect it.
-        return !isSpawningPaused || inDefenseRound;
-    }
-
-
-    // =========================================================
-    // ==========  NEW METHODS FOR STANDALONE GAMEDAY ==========
-    // =========================================================
 
     private void ApplyDifficulty()
     {
@@ -303,6 +239,7 @@ public class GameDayManager : MonoBehaviour
                 spawnRate = proSpawnRate;
                 spriteToUse = proSprite;
                 break;
+
             default:
                 spawnRate = collegeSpawnRate;
                 spriteToUse = collegeSprite;
@@ -311,21 +248,24 @@ public class GameDayManager : MonoBehaviour
 
         CurrentScrollSpeed = scrollSpeed;
         CurrentSpawnRate = spawnRate;
+
         OnScrollSpeedChanged?.Invoke(scrollSpeed);
         OnSpawnRateChanged?.Invoke(spawnRate);
 
-        if (difficultyImage != null)
-            difficultyImage.sprite = spriteToUse;
+        difficultyImage.sprite = spriteToUse;
     }
 
+    // -------------------- Play / GameOver --------------------
     public void Play()
     {
         player.enabled = true;
+
         playButton?.SetActive(false);
         gameOver?.SetActive(false);
         readyButton?.SetActive(false);
         menuButton?.SetActive(false);
         difficultyImage?.gameObject.SetActive(false);
+        playerNameInput?.gameObject.SetActive(false);
 
         Time.timeScale = 1f;
 
@@ -338,66 +278,71 @@ public class GameDayManager : MonoBehaviour
 
     public void GameOver()
     {
+        LogGameDayRun();
+
         gameOver?.SetActive(true);
         playButton?.SetActive(true);
         readyButton?.SetActive(false);
         difficultyImage?.gameObject.SetActive(true);
         menuButton?.SetActive(true);
 
-        if (spawner != null)
-            spawner.ClearAllGameDayActors();
+        spawner?.ClearAllGameDayActors();
 
         Pause();
         SelectPlayButton();
     }
 
+    // *** ADDED BACK — required because Play(), GameOver() call it ***
     private void SelectPlayButton()
     {
         Button button = playButton?.GetComponent<Button>();
         if (button != null)
-        {
             EventSystem.current?.SetSelectedGameObject(button.gameObject);
-        }
     }
+
 
     public void Pause()
     {
         Time.timeScale = 0f;
         player.enabled = false;
+        isSpawningPaused = true;
     }
 
+    public void OnPlayerDeathReset()
+    {
+        ResetScores();
+
+        inDefenseRound = false;
+        ballCarrierSpawning = false;
+        isSpawningPaused = false;
+
+        spawner?.ClearAllGameDayActors();
+        spawner?.ResetSpawner();
+    }
+
+    // -------------------- UI Updates --------------------
     private void UpdateHelmetDurabilityDisplay()
     {
         if (player == null)
             player = FindObjectOfType<Player>();
+
         if (helmetDurabilityText == null)
-        {
-            var obj = GameObject.Find("HelmetNumber");
-            if (obj != null)
-                helmetDurabilityText = obj.GetComponent<TextMeshProUGUI>();
-        }
+            helmetDurabilityText = GameObject.Find("HelmetNumber")?.GetComponent<TextMeshProUGUI>();
 
         if (player != null && helmetDurabilityText != null)
-        {
             helmetDurabilityText.text = player.GetHelmetDurability().ToString();
-        }
     }
 
     private void UpdatePlayerHealthDisplay()
     {
         if (player == null)
             player = FindObjectOfType<Player>();
+
         if (playerHealthText == null)
-        {
-            var obj = GameObject.Find("HealthNumber");
-            if (obj != null)
-                playerHealthText = obj.GetComponent<TextMeshProUGUI>();
-        }
+            playerHealthText = GameObject.Find("HealthNumber")?.GetComponent<TextMeshProUGUI>();
 
         if (player != null && playerHealthText != null)
-        {
             playerHealthText.text = player.GetHealth().ToString();
-        }
     }
 
     private void UpdateAllDisplays()
@@ -421,5 +366,44 @@ public class GameDayManager : MonoBehaviour
         AudioManager.Instance?.PlayClickSound();
         Time.timeScale = 1f;
         SceneManager.LoadScene("MenuScreen");
+    }
+
+    // -------------------- Logging --------------------
+    private string GetFinalizedPlayerName()
+    {
+        if (playerNameInput == null) return "Unknown";
+
+        playerNameInput.DeactivateInputField();
+        playerNameInput.ForceLabelUpdate();
+
+        string name = playerNameInput.text.Trim();
+        return string.IsNullOrEmpty(name) ? "Unknown" : name;
+    }
+
+    private void LogGameDayRun()
+    {
+        RunLogData data = new RunLogData
+        {
+            playerName = GetFinalizedPlayerName(),
+
+            gameMode = "GameDay",
+            difficulty = CurrentGameDayDifficulty.ToString(),
+
+            score = playerScore,
+            playerScore = playerScore,
+            enemyScore = enemyScore,
+
+            roundSeconds = roundElapsed,
+
+            obstaclesSpawned = obstaclesSpawned,
+            jumps = jumps,
+            helmetsCollected = 0,
+
+            offenseDrives = offenseDrives,
+            defenseRoundsWon = defenseRoundsWon,
+            defenseRoundsFailed = defenseRoundsFailed
+        };
+
+        RunDataLogger.AppendRun(data);
     }
 }

@@ -20,8 +20,9 @@ public class IowaManager : MonoBehaviour
     public Sprite easySprite;
     public Sprite normalSprite;
     public Sprite hardSprite;
+    public TMP_InputField playerNameInput;
 
-    // UI (internal labels)
+    // UI
     [SerializeField] private TextMeshProUGUI scoreText;
     [SerializeField] private TextMeshProUGUI helmetDurabilityText;
     [SerializeField] private TextMeshProUGUI playerHealthText;
@@ -44,7 +45,6 @@ public class IowaManager : MonoBehaviour
     public float CurrentScrollSpeed { get; private set; }
     public float CurrentSpawnRate { get; private set; }
 
-    private DateTime roundStartUtc;
     private float roundElapsed;
     private int obstaclesSpawned;
     private int jumps;
@@ -53,7 +53,21 @@ public class IowaManager : MonoBehaviour
     {
         Instance = this;
         Application.targetFrameRate = 60;
+
         gameOver.SetActive(false);
+        difficultyImage?.gameObject.SetActive(false);
+
+        // Show these on load
+        readyButton?.SetActive(true);         
+        playButton?.SetActive(true);
+        menuButton?.SetActive(true);
+        playerNameInput?.gameObject.SetActive(true);
+
+        // Using TextMeshPro fields you already have:
+        scoreText?.gameObject.SetActive(true);
+        helmetDurabilityText?.gameObject.SetActive(true);
+        playerHealthText?.gameObject.SetActive(true);
+
         Pause();
 
         currentDifficulty = StartDifficulty;
@@ -69,11 +83,15 @@ public class IowaManager : MonoBehaviour
     {
         if (player != null && player.enabled && Time.timeScale > 0f)
         {
+            // Timer
             roundElapsed += Time.unscaledDeltaTime;
+
+            // Jump counter
             bool jumpPressed =
                 (Keyboard.current?.spaceKey.wasPressedThisFrame ?? false) ||
                 (Mouse.current?.leftButton.wasPressedThisFrame ?? false) ||
                 (Gamepad.current?.buttonSouth.wasPressedThisFrame ?? false);
+
             if (jumpPressed) jumps++;
         }
 
@@ -82,55 +100,66 @@ public class IowaManager : MonoBehaviour
     }
 
     public void Play()
-{
-    score = 0;
-    scoreText.text = "0";
-    obstaclesSpawned = 0;
-    jumps = 0;
-    roundElapsed = 0f;
-    roundStartUtc = DateTime.UtcNow;
-
-    playButton.SetActive(false);
-    gameOver.SetActive(false);
-    menuButton.SetActive(false);
-    readyButton?.SetActive(false);
-    difficultyImage?.gameObject.SetActive(false);
-
-    Time.timeScale = 1f;
-    player.enabled = true;
-
-    UpdateAllDisplays();
-
-    // wipe old run’s spawned objects
-    foreach (var obj in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
-        if (obj is Obstacle or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or WindBoost or Football or GoalPost or BallCarrierBird)
-            Destroy(obj.gameObject);
-
-        // >>> NEW: reset Game Day
-        var gdm = FindFirstObjectByType<GameDayManager>();
-    if (gdm != null)
     {
-        gdm.ResetScores();         // 0–out the UI right away
-        gdm.OnPlayerDeathReset();  // also clears defense flags and resets spawner
+        score = 0;
+        scoreText.text = "0";
+        obstaclesSpawned = 0;
+        jumps = 0;
+        roundElapsed = 0f;
+
+        readyButton?.SetActive(false);
+        playButton?.SetActive(false);
+        menuButton?.SetActive(false);
+        playerNameInput?.gameObject.SetActive(false);
+        difficultyImage?.gameObject.SetActive(false);
+        gameOver?.SetActive(false);
+
+        scoreText?.gameObject.SetActive(true);
+        helmetDurabilityText?.gameObject.SetActive(true);
+        playerHealthText?.gameObject.SetActive(true);
+
+        if (playerNameInput != null)
+            playerNameInput.text = "";
+
+        Time.timeScale = 1f;
+        player.enabled = true;
+
+        UpdateAllDisplays();
+
+        // wipe old run’s spawned objects
+        foreach (var obj in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+            if (obj is Obstacle or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or WindBoost or Football or GoalPost or BallCarrierBird)
+                Destroy(obj.gameObject);
+
+        // reset Game Day if present
+        var gdm = FindFirstObjectByType<GameDayManager>();
+        if (gdm != null)
+        {
+            gdm.ResetScores();
+            gdm.OnPlayerDeathReset();
+        }
+
+
+
+        FindFirstObjectByType<Spawner>()?.ResetSpawner();
+
+        ApplyDifficulty();
     }
-    // <<< END NEW
-
-    // your existing reset (safe even if also called by OnPlayerDeathReset)
-    FindFirstObjectByType<Spawner>()?.ResetSpawner();
-
-    ApplyDifficulty();
-}
-
 
     public void GameOver()
     {
+        LogIowaRun();
+
         gameOver.SetActive(true);
         playButton.SetActive(true);
+        menuButton.SetActive(true);
+
+        // Hide these on GameOver screen
         readyButton?.SetActive(false);
-        difficultyImage?.gameObject.SetActive(true);
-        menuButton?.SetActive(true);
+        difficultyImage?.gameObject.SetActive(false);
+        playerNameInput?.gameObject.SetActive(false);
+
         Pause();
-        
         SelectPlayButton();
     }
 
@@ -138,16 +167,11 @@ public class IowaManager : MonoBehaviour
     {
         Button button = playButton?.GetComponent<Button>();
         if (button != null)
-        {
             EventSystem.current?.SetSelectedGameObject(button.gameObject);
-        }
     }
 
     public bool IsGameActive()
     {
-        // Game is active when:
-        // - Time is moving (not paused)
-        // - Player is enabled (not dead / not on title screen)
         return Time.timeScale > 0f && player != null && player.enabled;
     }
 
@@ -157,7 +181,7 @@ public class IowaManager : MonoBehaviour
         scoreText.text = score.ToString();
     }
 
-    // Compatibility stub for GameManager bridge
+    // bridge stub (Iowa never uses opponent score)
     public void IncreaseOpponentScore(int amount = 1) { }
 
     public void Pause()
@@ -205,34 +229,24 @@ public class IowaManager : MonoBehaviour
     {
         if (player == null)
             player = FindObjectOfType<Player>();
+
         if (helmetDurabilityText == null)
-        {
-            var obj = GameObject.Find("HelmetNumber");
-            if (obj != null)
-                helmetDurabilityText = obj.GetComponent<TextMeshProUGUI>();
-        }
+            helmetDurabilityText = GameObject.Find("HelmetNumber")?.GetComponent<TextMeshProUGUI>();
 
         if (player != null && helmetDurabilityText != null)
-        {
             helmetDurabilityText.text = player.GetHelmetDurability().ToString();
-        }
     }
 
     private void UpdatePlayerHealthDisplay()
     {
         if (player == null)
             player = FindObjectOfType<Player>();
+
         if (playerHealthText == null)
-        {
-            var obj = GameObject.Find("HealthNumber");
-            if (obj != null)
-                playerHealthText = obj.GetComponent<TextMeshProUGUI>();
-        }
+            playerHealthText = GameObject.Find("HealthNumber")?.GetComponent<TextMeshProUGUI>();
 
         if (player != null && playerHealthText != null)
-        {
             playerHealthText.text = player.GetHealth().ToString();
-        }
     }
 
     private void UpdateAllDisplays()
@@ -251,20 +265,58 @@ public class IowaManager : MonoBehaviour
         UpdateAllDisplays();
     }
 
-public void ReturnToMainMenu()
-{
-    AudioManager.Instance?.PlayClickSound();
-    Time.timeScale = 1f; // unpause in case it�s paused
-    SceneManager.LoadScene("MenuScreen");
-}
+    public void ReturnToMainMenu()
+    {
+        AudioManager.Instance?.PlayClickSound();
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("MenuScreen");
+    }
 
-
-public void QuitGame()
+    public void QuitGame()
     {
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
         Application.Quit();
 #endif
+    }
+
+    // ----------------------- LOGGING ----------------------
+    private string GetFinalizedPlayerName()
+    {
+        if (playerNameInput == null) return "Unknown";
+
+        playerNameInput.DeactivateInputField();
+        playerNameInput.ForceLabelUpdate();
+
+        string name = playerNameInput.text.Trim();
+        return string.IsNullOrEmpty(name) ? "Unknown" : name;
+    }
+
+    private void LogIowaRun()
+    {
+        RunLogData data = new RunLogData
+        {
+            playerName = GetFinalizedPlayerName(),
+
+            gameMode = "Iowa",
+            difficulty = currentDifficulty.ToString(),
+
+            score = score,
+            playerScore = score,
+            enemyScore = 0,
+
+            roundSeconds = roundElapsed,
+
+            obstaclesSpawned = obstaclesSpawned,
+            jumps = jumps,
+            helmetsCollected = 0,
+
+            offenseDrives = 0,
+            defenseRoundsWon = 0,
+            defenseRoundsFailed = 0
+        };
+
+        RunDataLogger.AppendRun(data);
     }
 }
