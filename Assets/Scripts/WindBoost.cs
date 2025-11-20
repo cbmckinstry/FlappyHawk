@@ -5,8 +5,8 @@ public class WindBoost : MonoBehaviour, ICollectible
     public int healthGain = 1;
     public float moveSpeed = 4.5f;
     private float leftEdge;
-    private const float BOOST_DISTANCE = 1.5f;
-    private const float BOOST_SPEED = 0.5f;
+    public static float BOOST_DISTANCE = 1.5f;
+    public static float BOOST_SPEED = 0.5f;
 
     private void OnEnable()
     {

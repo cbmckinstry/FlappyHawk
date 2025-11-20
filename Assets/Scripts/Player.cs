@@ -29,9 +29,9 @@ public class Player : MonoBehaviour
 
     private Vector3 knockbackVelocity = Vector3.zero;
     private bool isKnockedBack = false;
-    private const float KNOCKBACK_DISTANCE = 1.5f;
-    private const float KNOCKBACK_SPEED = 4.5f;
-    private const float KNOCKBACK_DURATION = KNOCKBACK_DISTANCE / KNOCKBACK_SPEED;
+    public static float KNOCKBACK_DISTANCE = 1.5f;
+    public static float KNOCKBACK_SPEED = 4.5f;
+    public static float KNOCKBACK_DURATION = KNOCKBACK_DISTANCE / KNOCKBACK_SPEED;
 
     private float boostVelocityX = 0f;
     private float boostTimeRemaining = 0f;
@@ -77,6 +77,10 @@ public class Player : MonoBehaviour
             screenRight = topRight.x + 1f;
             screenBottom = bottomLeft.y - 1f;
             screenTop = topRight.y + 1f;
+
+            KNOCKBACK_DISTANCE = Mathf.Abs(screenLeft) / 5f;
+            KNOCKBACK_DURATION = KNOCKBACK_DISTANCE / KNOCKBACK_SPEED;
+            WindBoost.BOOST_DISTANCE = KNOCKBACK_DISTANCE;
         }
     }
 
@@ -467,20 +471,24 @@ private void DieToGround()
     }
 
     private void AutoCollectCornKernels()
+{
+    // How close in X we consider "the same x coordinate"
+    const float xEpsilon = 0.05f;
+
+    CornKernel[] allCornKernels = FindObjectsOfType<CornKernel>();
+
+    foreach (CornKernel kernel in allCornKernels)
     {
-        CornKernel[] allCornKernels = FindObjectsOfType<CornKernel>();
-        
-        foreach (CornKernel kernel in allCornKernels)
+        float xDiff = Mathf.Abs(kernel.transform.position.x - transform.position.x);
+
+        // "Same x" within a small tolerance, ignore Y so any kernel that passes that x is grabbed
+        if (xDiff <= xEpsilon)
         {
-            if (kernel.transform.position.x >= transform.position.x && 
-                kernel.transform.position.x < transform.position.x + 0.5f &&
-                Mathf.Abs(kernel.transform.position.y - transform.position.y) < 1f)
-            {
-                kernel.Collect(this);
-                Destroy(kernel.gameObject);
-            }
+            kernel.Collect(this);
+            Destroy(kernel.gameObject);
         }
     }
+}
 
     public bool IsMagnetActive() => isMagnetActive;
 
