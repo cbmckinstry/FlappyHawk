@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.IO;
 using UnityEngine;
@@ -6,13 +6,11 @@ using UnityEngine;
 public static class RunDataLogger
 {
     private const string FileName = "game_runs.csv";
-    private const string PlayerIdKey = "player_id";
+    private const string RunIdKey = "run_id_counter";
 
-    // Save folder (Documents/FlappyHawk/Logs on desktop)
     private static readonly string PreferredDesktopDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "FlappyHawk", "Logs");
 
-    // Automatically choose best writable location
     private static string BestWritableDir
     {
         get
@@ -29,75 +27,79 @@ public static class RunDataLogger
 
     private static string FilePath => Path.Combine(BestWritableDir, FileName);
 
-    public static string PlayerId
+    // Auto-incrementing run ID
+    public static int GetNextRunId()
     {
-        get
-        {
-            if (!PlayerPrefs.HasKey(PlayerIdKey))
-            {
-                PlayerPrefs.SetString(PlayerIdKey, Guid.NewGuid().ToString("N"));
-                PlayerPrefs.Save();
-            }
-            return PlayerPrefs.GetString(PlayerIdKey);
-        }
+        int id = PlayerPrefs.GetInt(RunIdKey, 0) + 1;
+        PlayerPrefs.SetInt(RunIdKey, id);
+        PlayerPrefs.Save();
+        return id;
     }
 
-    /// <summary>
-    /// Append a gameplay run entry to the log CSV file.
-    /// </summary>
-    public static void AppendRun(
-        string playerId,
-        Difficulty difficulty,   // now uses global enum, not GameManager.Difficulty
-        int score,
-        float roundSeconds,
-        DateTime startUtc,
-        int pipesSpawned,
-        int jumps
-    )
+    // ============================================
+    // MAIN ENTRY
+    // ============================================
+    public static void AppendRun(RunLogData data)
     {
         try
         {
-            var newFile = !File.Exists(FilePath);
+            bool newFile = !File.Exists(FilePath);
 
             using (var sw = new StreamWriter(FilePath, append: true))
             {
                 if (newFile)
-                    sw.WriteLine("player_id,difficulty,score,round_seconds,start_utc,pipes_spawned,jumps");
+                {
+                    sw.WriteLine(
+                        "run_id,player_name,game_mode,difficulty,score,player_score,enemy_score," +
+                        "round_seconds,obstacles_spawned,jumps,helmets_collected," +
+                        "offense_drives,defense_rounds_won,defense_rounds_failed"
+                    );
+                }
 
                 string line = string.Join(",",
-                    Escape(playerId),
-                    Escape(difficulty.ToString()),
-                    score.ToString(CultureInfo.InvariantCulture),
-                    roundSeconds.ToString("0.###", CultureInfo.InvariantCulture),
-                    Escape(startUtc.ToString("o", CultureInfo.InvariantCulture)),
-                    pipesSpawned.ToString(CultureInfo.InvariantCulture),
-                    jumps.ToString(CultureInfo.InvariantCulture)
+                    data.runId,
+                    Escape(data.playerName),
+                    Escape(data.gameMode),
+                    Escape(data.difficulty),
+                    data.score,
+                    data.playerScore,
+                    data.enemyScore,
+                    data.roundSeconds.ToString("0.###"),
+                    data.obstaclesSpawned,
+                    data.jumps,
+                    data.helmetsCollected,
+                    data.offenseDrives,
+                    data.defenseRoundsWon,
+                    data.defenseRoundsFailed
                 );
 
                 sw.WriteLine(line);
             }
 
 #if UNITY_EDITOR
-            Debug.Log($"[RunDataLogger] Wrote run to: {FilePath}");
+            Debug.Log($"[RunDataLogger] Saved run → {FilePath}");
 #endif
         }
         catch (Exception ex)
         {
-            Debug.LogError($"[RunDataLogger] Failed to write run: {ex}");
+            Debug.LogError($"[RunDataLogger] Error writing log: {ex}");
         }
     }
 
-    public static string GetLogFilePath() => FilePath;
-    public static string GetLogFolder() => BestWritableDir;
-
+    // ============================================
+    // HELPERS
+    // ============================================
     private static bool TryEnsureWritable(string dir)
     {
         try
         {
-            if (string.IsNullOrEmpty(dir)) return false;
+            if (string.IsNullOrEmpty(dir))
+                return false;
+
             Directory.CreateDirectory(dir);
+
 #if UNITY_STANDALONE || UNITY_EDITOR
-            var probe = Path.Combine(dir, ".write_test.tmp");
+            string probe = Path.Combine(dir, ".probe.tmp");
             File.WriteAllText(probe, "ok");
             File.Delete(probe);
 #endif
@@ -113,4 +115,31 @@ public static class RunDataLogger
             return $"\"{s.Replace("\"", "\"\"")}\"";
         return s;
     }
+}
+
+// ============================================
+// UPDATED RUN DATA HOLDER
+// ============================================
+public class RunLogData
+{
+    public int runId = RunDataLogger.GetNextRunId();
+
+    public string playerName;   
+
+    public string gameMode;      
+    public string difficulty;    
+
+    public int score;
+    public int playerScore;
+    public int enemyScore;
+
+    public float roundSeconds;
+
+    public int obstaclesSpawned;
+    public int jumps;
+    public int helmetsCollected;
+
+    public int offenseDrives;
+    public int defenseRoundsWon;
+    public int defenseRoundsFailed;
 }
