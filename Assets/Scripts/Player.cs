@@ -78,7 +78,7 @@ public class Player : MonoBehaviour
             screenBottom = bottomLeft.y - 1f;
             screenTop = topRight.y + 1f;
 
-            KNOCKBACK_DISTANCE = Mathf.Abs(screenLeft) / 5f;
+            KNOCKBACK_DISTANCE = Mathf.Abs(bottomLeft.x) / 5f;
             KNOCKBACK_DURATION = KNOCKBACK_DISTANCE / KNOCKBACK_SPEED;
             WindBoost.BOOST_DISTANCE = KNOCKBACK_DISTANCE;
         }

@@ -1694,7 +1694,7 @@ GameObject:
   - component: {fileID: 988892444}
   - component: {fileID: 988892445}
   m_Layer: 0
-  m_Name: CornMagnet
+  m_Name: CornMagnetVisual
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
