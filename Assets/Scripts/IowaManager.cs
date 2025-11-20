@@ -122,7 +122,18 @@ public class IowaManager : MonoBehaviour
             playerNameInput.text = "";
 
         Time.timeScale = 1f;
+        
+        ApplyDifficulty();
+        
         player.enabled = true;
+        
+        int maxHealth = currentDifficulty switch
+        {
+            GameManager.Difficulty.Normal => 4,
+            GameManager.Difficulty.Hard => 3,
+            _ => 5
+        };
+        player.SetMaxHealth(maxHealth);
 
         Transform cornMagnetVisual = player.transform.Find("CornMagnetVisual");
         if (cornMagnetVisual != null)
@@ -130,7 +141,7 @@ public class IowaManager : MonoBehaviour
 
         UpdateAllDisplays();
 
-        // wipe old run’s spawned objects
+        // wipe old run's spawned objects
         foreach (var obj in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
             if (obj is Obstacle or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or CornMagnet or WindBoost or Football or GoalPost or BallCarrierBird)
                 Destroy(obj.gameObject);
@@ -146,8 +157,6 @@ public class IowaManager : MonoBehaviour
 
 
         FindFirstObjectByType<Spawner>()?.ResetSpawner();
-
-        ApplyDifficulty();
     }
 
     public void GameOver()
@@ -198,26 +207,31 @@ public class IowaManager : MonoBehaviour
     {
         float spawnRate;
         Sprite currentSprite;
+        int maxHealth;
 
         switch (currentDifficulty)
         {
             case GameManager.Difficulty.Normal:
                 spawnRate = normalSpawnRate;
                 currentSprite = normalSprite;
+                maxHealth = 4;
                 break;
             case GameManager.Difficulty.Hard:
                 spawnRate = hardSpawnRate;
                 currentSprite = hardSprite;
+                maxHealth = 3;
                 break;
             default:
                 spawnRate = easySpawnRate;
                 currentSprite = easySprite;
+                maxHealth = 5;
                 break;
         }
 
         CurrentScrollSpeed = scrollSpeed;
         player.gravity = -9.8f;
         CurrentSpawnRate = spawnRate;
+        player.SetMaxHealth(maxHealth);
 
         OnScrollSpeedChanged?.Invoke(scrollSpeed);
         OnSpawnRateChanged?.Invoke(spawnRate);

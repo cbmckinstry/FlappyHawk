@@ -276,6 +276,12 @@ public class Player : MonoBehaviour
         ApplyHealthInvulnerability();
     }
 
+    public void SetMaxHealth(int newMaxHealth)
+    {
+        maxPlayerHealth = newMaxHealth;
+        playerHealth = Mathf.Min(playerHealth, maxPlayerHealth);
+    }
+
     public void GainHelmet(int amount)
     {
         helmetDurability = Mathf.Min(helmetDurability + amount, maxHelmetDurability);

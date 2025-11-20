@@ -357,7 +357,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 5
+  m_text: 0
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: bc03d698007854e22aff11d1a5778e4f, type: 2}
   m_sharedMaterial: {fileID: -9027024394603462681, guid: bc03d698007854e22aff11d1a5778e4f, type: 2}
@@ -2196,8 +2196,8 @@ MonoBehaviour:
   cycloneBirdWeight: 0
   tornadoWeight: 0
   cornKernelWeight: 0.6
-  helmetWeight: 0.1
-  windBoostWeight: 0.1
+  helmetWeight: 0
+  windBoostWeight: 0.2
   cornMagnetWeight: 0.2
   defenseCarrierDelay: 3
   goalPostSpawnRate: 10
