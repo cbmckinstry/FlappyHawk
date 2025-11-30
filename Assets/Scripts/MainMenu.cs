@@ -9,6 +9,7 @@ public class MainMenu : MonoBehaviour
     public GameObject mainMenuPanel;
     public GameObject iowaMenuPanel;
     public GameObject gamedayMenuPanel;
+    public GameObject leaderboardPanel;
     public GameObject settingsMenuPanel;
     public GameObject howToPlayMenuPanel;
     public GameObject creditsMenuPanel;
@@ -105,6 +106,8 @@ public class MainMenu : MonoBehaviour
     public void ShowSettings() => SwitchPanel(mainMenuPanel, settingsMenuPanel);
     public void ShowHowToPlay() => SwitchPanel(mainMenuPanel, howToPlayMenuPanel);
     public void ShowCredits() => SwitchPanel(mainMenuPanel, creditsMenuPanel);
+
+    public void ShowLeaderboards() => SwitchPanel(mainMenuPanel, leaderboardPanel);
     public void BackToMain() => ResetToMain();
 
     private void SwitchPanel(GameObject from, GameObject to)
@@ -122,6 +125,7 @@ public class MainMenu : MonoBehaviour
         settingsMenuPanel.SetActive(false);
         howToPlayMenuPanel.SetActive(false);
         creditsMenuPanel.SetActive(false);
+        leaderboardPanel.SetActive(false);
         mainMenuPanel.SetActive(true);
     }
 

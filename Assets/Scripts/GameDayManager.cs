@@ -17,9 +17,6 @@ public class GameDayManager : MonoBehaviour
     public GameObject gameOver;
     public GameObject readyButton;
     public GameObject menuButton;
-    public Image difficultyImage;
-    public Sprite collegeSprite;
-    public Sprite proSprite;
     public TMP_InputField playerNameInput;
 
     // UI (internal labels)
@@ -47,6 +44,8 @@ public class GameDayManager : MonoBehaviour
     public float CurrentScrollSpeed { get; private set; } = 5f;
     public float CurrentSpawnRate { get; private set; } = 1.2f;
 
+    private Coroutine modePopupRoutine;
+
     // Round/score state
     private bool inDefenseRound = false;
     private bool isSpawningPaused = false;
@@ -57,19 +56,16 @@ public class GameDayManager : MonoBehaviour
     private int playerScore = 0;
     private int enemyScore = 0;
 
-    private DateTime roundStartUtc;
-    private float roundElapsed;
-    private int obstaclesSpawned;
-    private int jumps;
+    // TIMERS / COUNTERS (FIXED)
+    private float roundElapsed = 0f;
+    private int obstaclesSpawned = 0;
+    private int jumps = 0;
 
     // Logging counters 
     private int offenseDrives = 0;
     private int defenseRoundsWon = 0;
     private int defenseRoundsFailed = 0;
 
-
-
-    // -------------------- Unity Lifecycle --------------------
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -79,42 +75,27 @@ public class GameDayManager : MonoBehaviour
             CurrentGameDayDifficulty = (GameManager.GameDayDifficulty)PlayerPrefs.GetInt("GameDayDifficulty");
 
         gameOver?.SetActive(false);
-        
-        FindAndCacheScoreTextReferences();
-        
-        Pause();
-    }
-    
-    private void FindAndCacheScoreTextReferences()
-    {
-        GameObject playerScoreObj = GameObject.Find("PlayerScore");
-        if (playerScoreObj != null)
-        {
-            playerScoreText = playerScoreObj.GetComponent<TextMeshProUGUI>();
-            Debug.Log($"[GameDayManager] Cached playerScoreText (Hawkeyes) from: {playerScoreObj.name}");
-        }
-        else
-        {
-            Debug.LogError("[GameDayManager] ERROR: Could not find PlayerScore GameObject!");
-        }
 
-        GameObject opponentScoreObj = GameObject.Find("OpponentScore");
-        if (opponentScoreObj != null)
-        {
-            opponentScoreText = opponentScoreObj.GetComponent<TextMeshProUGUI>();
-            Debug.Log($"[GameDayManager] Cached opponentScoreText (Cyclones) from: {opponentScoreObj.name}");
-        }
-        else
-        {
-            Debug.LogError("[GameDayManager] ERROR: Could not find OpponentScore GameObject!");
-        }
+        FindAndCacheScoreTextReferences();
+
+        if (player != null)
+            player.gameObject.SetActive(false);
+
+        Pause();
     }
 
     private void OnEnable()
     {
         spawner = FindObjectOfType<Spawner>();
-        UpdateModeDisplay();
+
+        UpdateModeDisplay(false);
+
         ResetScores();
+
+        // FIXED — reset counters when run starts
+        roundElapsed = 0f;
+        jumps = 0;
+        obstaclesSpawned = 0;
     }
 
     private void Start()
@@ -122,67 +103,92 @@ public class GameDayManager : MonoBehaviour
         SelectPlayButton();
     }
 
+    //  FIXED — this was REMOVED previously; adding it back.
     private void Update()
     {
-        UpdateModeDisplay();
+        if (IsGameActive())
+        {
+            roundElapsed += Time.unscaledDeltaTime;
+
+            bool jumpPressed =
+                (Keyboard.current?.spaceKey.wasPressedThisFrame ?? false) ||
+                (Mouse.current?.leftButton.wasPressedThisFrame ?? false) ||
+                (Gamepad.current?.buttonSouth.wasPressedThisFrame ?? false);
+
+            if (jumpPressed) jumps++;
+        }
     }
 
-    // -------------------- UI Helpers --------------------
-    private void UpdateModeDisplay()
+    private void FindAndCacheScoreTextReferences()
     {
-        if (modeText != null)
-        {
-            modeText.text = inDefenseRound ? "DEFENSE" : "OFFENSE";
-            if (!modeText.gameObject.activeSelf) modeText.gameObject.SetActive(true);
-        }
+        GameObject playerScoreObj = GameObject.Find("PlayerScore");
+        if (playerScoreObj != null)
+            playerScoreText = playerScoreObj.GetComponent<TextMeshProUGUI>();
+
+        GameObject opponentScoreObj = GameObject.Find("OpponentScore");
+        if (opponentScoreObj != null)
+            opponentScoreText = opponentScoreObj.GetComponent<TextMeshProUGUI>();
+    }
+
+    private void UpdateModeDisplay(bool playPopup = true)
+    {
+        if (modeText == null) return;
+
+        modeText.text = inDefenseRound ? "DEFENSE" : "OFFENSE";
+
+        if (playPopup)
+            ShowModePopup();
     }
 
     private void UpdatePlayerScoreUI(int value)
     {
         if (playerScoreText != null)
-        {
             playerScoreText.text = value.ToString();
-            Debug.Log($"[GameDayManager] Updated ScoreText to: {value}");
-        }
-        else
-        {
-            Debug.LogError("[GameDayManager] ERROR: playerScoreText is null!");
-        }
     }
 
     private void UpdateOpponentScoreUI(int value)
     {
         if (opponentScoreText != null)
-        {
             opponentScoreText.text = value.ToString();
-            Debug.Log($"[GameDayManager] Updated OpponentScore to: {value}");
-        }
-        else
-        {
-            Debug.LogError("[GameDayManager] ERROR: opponentScoreText is null!");
-        }
     }
 
-    // -------------------- Queries --------------------
-    public bool IsInDefenseRound() => inDefenseRound;
-    public bool IsBallCarrierSpawningThisFrame() => ballCarrierSpawning;
-    public bool IsSpawningPaused() => isSpawningPaused;
+    // -------------------- RESTORED PUBLIC API --------------------
+    public bool IsInDefenseRound()
+    {
+        return inDefenseRound;
+    }
 
-    // *** ADDED BACK â€” required by GameManager ***
+    public bool IsSpawningPaused()
+    {
+        return isSpawningPaused;
+    }
+
+    public bool IsBallCarrierSpawningThisFrame()
+    {
+        return ballCarrierSpawning;
+    }
+
+    public void OnWaveCompleted()
+    {
+        Debug.Log("[GameDay] Wave completed");
+    }
+    // ------------------------------------------------------------
+
     public bool IsGameActive()
     {
         return Time.timeScale > 0f && player != null && player.enabled;
     }
 
-
-    // -------------------- Flow Control --------------------
     public void StartDefenseRound()
     {
         if (inDefenseRound) return;
 
         inDefenseRound = true;
         isSpawningPaused = false;
+
         StartCoroutine(DefenseRoundTimer());
+
+        UpdateModeDisplay(true);
     }
 
     public void EndDefenseRound(bool playerWon)
@@ -190,6 +196,8 @@ public class GameDayManager : MonoBehaviour
         inDefenseRound = false;
         ballCarrierSpawning = false;
         isSpawningPaused = false;
+
+        UpdateModeDisplay(true);
 
         if (playerWon)
             defenseRoundsWon++;
@@ -225,17 +233,10 @@ public class GameDayManager : MonoBehaviour
         EndDefenseRound(false);
     }
 
-    public void OnWaveCompleted()
-    {
-        Debug.Log("[GameDay] Wave completed");
-    }
-
-    // -------------------- Scoring API --------------------
     public void IncreaseOpponentScore(int amount = 1)
     {
         if (amount <= 0) return;
         enemyScore += amount;
-        Debug.Log($"[GameDayManager] IncreaseOpponentScore called: +{amount}, total enemyScore now: {enemyScore}");
         UpdateOpponentScoreUI(enemyScore);
     }
 
@@ -243,7 +244,6 @@ public class GameDayManager : MonoBehaviour
     {
         if (amount <= 0) return;
         playerScore += amount;
-        Debug.Log($"[GameDayManager] IncreaseScore called: +{amount}, total playerScore now: {playerScore}");
         UpdatePlayerScoreUI(playerScore);
     }
 
@@ -255,7 +255,6 @@ public class GameDayManager : MonoBehaviour
         UpdateOpponentScoreUI(0);
     }
 
-    // -------------------- Difficulty --------------------
     public void SetGameDayDifficulty(GameManager.GameDayDifficulty diff)
     {
         CurrentGameDayDifficulty = diff;
@@ -266,18 +265,15 @@ public class GameDayManager : MonoBehaviour
     private void ApplyDifficulty()
     {
         float spawnRate;
-        Sprite spriteToUse;
 
         switch (CurrentGameDayDifficulty)
         {
             case GameManager.GameDayDifficulty.Pro:
                 spawnRate = proSpawnRate;
-                spriteToUse = proSprite;
                 break;
 
             default:
                 spawnRate = collegeSpawnRate;
-                spriteToUse = collegeSprite;
                 break;
         }
 
@@ -286,40 +282,48 @@ public class GameDayManager : MonoBehaviour
 
         OnScrollSpeedChanged?.Invoke(scrollSpeed);
         OnSpawnRateChanged?.Invoke(spawnRate);
-
-        difficultyImage.sprite = spriteToUse;
     }
 
-    // -------------------- Play / GameOver --------------------
     public void Play()
     {
+        if (player != null)
+            player.gameObject.SetActive(true);
+
         player.enabled = true;
 
         playButton?.SetActive(false);
         gameOver?.SetActive(false);
         readyButton?.SetActive(false);
         menuButton?.SetActive(false);
-        difficultyImage?.gameObject.SetActive(false);
         playerNameInput?.gameObject.SetActive(false);
 
         Time.timeScale = 1f;
 
         ResetScores();
+
+        roundElapsed = 0f;
+        jumps = 0;
+        obstaclesSpawned = 0;
+
         OnPlayerDeathReset();
         UpdateAllDisplays();
-
         ApplyDifficulty();
+
+        UpdateModeDisplay(true);
     }
 
     public void GameOver()
     {
+        //  CRITICAL FIX — log BEFORE resetting anything
         LogGameDayRun();
 
+        if (player != null)
+            player.gameObject.SetActive(false);
+
         gameOver?.SetActive(true);
-        playButton?.SetActive(true);
+        playButton.SetActive(true);
         readyButton?.SetActive(false);
-        difficultyImage?.gameObject.SetActive(true);
-        menuButton?.SetActive(true);
+        menuButton.SetActive(true);
 
         spawner?.ClearAllGameDayActors();
 
@@ -327,14 +331,12 @@ public class GameDayManager : MonoBehaviour
         SelectPlayButton();
     }
 
-    // *** ADDED BACK â€” required because Play(), GameOver() call it ***
     private void SelectPlayButton()
     {
         Button button = playButton?.GetComponent<Button>();
         if (button != null)
             EventSystem.current?.SetSelectedGameObject(button.gameObject);
     }
-
 
     public void Pause()
     {
@@ -355,7 +357,6 @@ public class GameDayManager : MonoBehaviour
         spawner?.ResetSpawner();
     }
 
-    // -------------------- UI Updates --------------------
     private void UpdateHelmetDurabilityDisplay()
     {
         if (player == null)
@@ -424,12 +425,11 @@ public class GameDayManager : MonoBehaviour
             gameMode = "GameDay",
             difficulty = CurrentGameDayDifficulty.ToString(),
 
-            score = playerScore,
+            score = 0, // Gameday does NOT use Iowa score
             playerScore = playerScore,
             enemyScore = enemyScore,
 
             roundSeconds = roundElapsed,
-
             obstaclesSpawned = obstaclesSpawned,
             jumps = jumps,
             helmetsCollected = 0,
@@ -440,5 +440,22 @@ public class GameDayManager : MonoBehaviour
         };
 
         RunDataLogger.AppendRun(data);
+    }
+
+    private void ShowModePopup()
+    {
+        if (modePopupRoutine != null)
+            StopCoroutine(modePopupRoutine);
+
+        modePopupRoutine = StartCoroutine(ModePopupRoutine());
+    }
+
+    private IEnumerator ModePopupRoutine()
+    {
+        modeText.gameObject.SetActive(true);
+
+        yield return new WaitForSeconds(2f);
+
+        modeText.gameObject.SetActive(false);
     }
 }
