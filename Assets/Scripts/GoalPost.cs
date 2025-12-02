@@ -84,10 +84,10 @@ public class GoalPost : MonoBehaviour
             }
         }
 
-        // Case 3: Dropped football goes through = 3 points (Cyclone/Opponent scores)
+        // Case 3: Dropped football goes through = 3 points (Player scores)
         if (football != null && !football.IsCarried())
         {
-            GameManager.IncreaseOpponentScore(3);
+            GameManager.IncreaseScore(3);
             Destroy(football.gameObject);
             hasScored = true;
             TriggerDefenseRound();
