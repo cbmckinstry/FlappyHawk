@@ -51,6 +51,7 @@ public class WindBoost : MonoBehaviour, ICollectible
         if (!isAtMaxHealth)
         {
             player.ApplyHorizontalBoost(BOOST_DISTANCE, BOOST_SPEED);
+            AudioManager.Instance?.PlaySpeedBoost();
         }
     }
 }

@@ -6,10 +6,7 @@ public class AudioManager : MonoBehaviour
     public static AudioManager Instance { get; private set; }
 
     [Header("Audio Sources (Persistent)")]
-    [Tooltip("A dedicated AudioSource for SFX. Set to 'Spatial Blend: 0' (2D).")]
     public AudioSource sfxSource;
-
-    [Tooltip("A dedicated AudioSource for background music. Set to 'Loop: true'.")]
     public AudioSource musicSource;
 
     [Header("Music Clips")]
@@ -20,21 +17,27 @@ public class AudioManager : MonoBehaviour
     [Header("SFX Clips")]
     public AudioClip clickSfx;
     public AudioClip cornCollectSfx;
-    public AudioClip dieSfx;
+    public AudioClip gameOverSfx;
     public AudioClip fieldGoalScoreSfx;
     public AudioClip touchdownScoreSfx;
     public AudioClip tackleSfx;
     public AudioClip wingFlapSfx;
+    public AudioClip enemyScoreSfx;
+    public AudioClip helmetCollectSfx;
+    public AudioClip hoverSfx;
+    public AudioClip magnetCollectSfx;
+    public AudioClip speedBoostSfx;
+    public AudioClip whistleSfx;
+    public AudioClip gruntSfx;
+    public AudioClip splatSfx;
 
     [Header("Volume (0–10) Defaults")]
     [Range(0f, 10f)] public float masterVolume = 10f;
     [Range(0f, 10f)] public float sfxVolume = 10f;
     [Range(0f, 10f)] public float musicVolume = 2f;
 
-    // ————————————————— LIFECYCLE —————————————————
     private void Awake()
     {
-        // Singleton pattern (persist across scenes)
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -43,7 +46,6 @@ public class AudioManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        // Load saved volumes
         masterVolume = PlayerPrefs.GetFloat("MasterVolume", masterVolume);
         sfxVolume = PlayerPrefs.GetFloat("SFXVolume", sfxVolume);
         musicVolume = PlayerPrefs.GetFloat("MusicVolume", musicVolume);
@@ -58,10 +60,8 @@ public class AudioManager : MonoBehaviour
             SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    // ————————————————— SCENE → MUSIC —————————————————
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // Scenes
         var name = scene.name;
 
         if (name == "MenuScreen")
@@ -76,16 +76,8 @@ public class AudioManager : MonoBehaviour
         {
             PlayMusic(gameDayMusic);
         }
-        else
-        {
-            // Fallback if you land on a utility scene
-            PlayMusic(menuMusic);
-        }
     }
 
-    /// <summary>
-    /// Optional: call this manually if you change modes without loading a new scene.
-    /// </summary>
     public void SwitchMusicForMode(GameManager.GameMode mode)
     {
         switch (mode)
@@ -102,7 +94,6 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    // ————————————————— MUSIC CONTROL —————————————————
     private void PlayMusic(AudioClip clip)
     {
         if (!musicSource || clip == null) return;
@@ -112,7 +103,7 @@ public class AudioManager : MonoBehaviour
         musicSource.clip = clip;
         musicSource.loop = true;
         musicSource.Play();
-        ApplyVolumes(); // ensure volume is correct on new clip
+        ApplyVolumes();
     }
 
     public void StopMusic()
@@ -127,12 +118,10 @@ public class AudioManager : MonoBehaviour
         else musicSource.UnPause();
     }
 
-    // ————————————————— SFX HELPERS —————————————————
     private void PlaySfx(AudioClip clip, float pitchJitter = 0f)
     {
         if (!sfxSource || clip == null) return;
 
-        // optional tiny pitch variation for “less robotic” feel
         if (pitchJitter > 0f)
         {
             sfxSource.pitch = Random.Range(1f - pitchJitter, 1f + pitchJitter);
@@ -145,15 +134,23 @@ public class AudioManager : MonoBehaviour
         sfxSource.PlayOneShot(clip, (sfxVolume / 10f) * (masterVolume / 10f));
     }
 
-    public void PlayClickSound() => PlaySfx(clickSfx, 0.05f);
-    public void PlayCornCollect() => PlaySfx(cornCollectSfx, 0.03f);
-    public void PlayDie() => PlaySfx(dieSfx);
+    public void PlayClickSound() => PlaySfx(clickSfx);
+    public void PlayCornCollect() => PlaySfx(cornCollectSfx);
+    public void PlayDie() => PlaySfx(gameOverSfx);
+    public void PlayGameOver() => PlaySfx(gameOverSfx);
     public void PlayTouchdown() => PlaySfx(touchdownScoreSfx);
     public void PlayFieldGoal() => PlaySfx(fieldGoalScoreSfx);
     public void PlayTackle() => PlaySfx(tackleSfx);
-    public void PlayWingFlap() => PlaySfx(wingFlapSfx, 0.06f);
+    public void PlayWingFlap() => PlaySfx(wingFlapSfx);
+    public void PlayEnemyScore() => PlaySfx(enemyScoreSfx);
+    public void PlayHelmetCollect() => PlaySfx(helmetCollectSfx);
+    public void PlayHover() => PlaySfx(hoverSfx);
+    public void PlayMagnetCollect() => PlaySfx(magnetCollectSfx);
+    public void PlaySpeedBoost() => PlaySfx(speedBoostSfx);
+    public void PlayWhistle() => PlaySfx(whistleSfx);
+    public void PlayGrunt() => PlaySfx(gruntSfx);
+    public void PlaySplat() => PlaySfx(splatSfx);
 
-    // ————————————————— VOLUME —————————————————
     public void ApplyVolumes()
     {
         float master = Mathf.Clamp01(masterVolume / 10f);

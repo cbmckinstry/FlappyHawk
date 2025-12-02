@@ -161,6 +161,7 @@ public class IowaManager : MonoBehaviour
     {
         LogIowaRun();
 
+
         // Hide player when Game Over happens
         if (player != null)
             player.gameObject.SetActive(false);

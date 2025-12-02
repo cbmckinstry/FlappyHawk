@@ -222,7 +222,7 @@ public class Player : MonoBehaviour
             if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
             {
                 GameManager.GameOver();
-                AudioManager.Instance?.PlayDie();
+                AudioManager.Instance?.PlayGrunt();
                 return;
             }
 
@@ -237,7 +237,7 @@ public class Player : MonoBehaviour
             if (playerHealth <= 0)
             {
                 GameManager.GameOver();
-                AudioManager.Instance?.PlayDie();
+                AudioManager.Instance?.PlayGameOver();
             }
             else
             {
@@ -248,6 +248,7 @@ public class Player : MonoBehaviour
 
     private void ApplyKnockback()
     {
+        AudioManager.Instance?.PlayTackle();
         isKnockedBack = true;
         knockbackVelocity = Vector3.left * KNOCKBACK_SPEED;
         Invoke(nameof(EndKnockback), KNOCKBACK_DURATION);
@@ -298,7 +299,7 @@ public class Player : MonoBehaviour
 private void DieToGround()
 {
     Debug.Log("[Player] Ground hit — instant death.");
-    AudioManager.Instance?.PlayDie();
+    AudioManager.Instance?.PlaySplat();
     GameManager.GameOver();  // bypass helmet/health entirely
 }
 

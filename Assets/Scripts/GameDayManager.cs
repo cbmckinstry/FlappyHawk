@@ -1,4 +1,4 @@
-using System;
+using System;using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -56,7 +56,7 @@ public class GameDayManager : MonoBehaviour
     private int playerScore = 0;
     private int enemyScore = 0;
 
-    // TIMERS / COUNTERS (FIXED)
+    // TIMERS / COUNTERS
     private float roundElapsed = 0f;
     private int obstaclesSpawned = 0;
     private int jumps = 0;
@@ -92,7 +92,6 @@ public class GameDayManager : MonoBehaviour
 
         ResetScores();
 
-        // FIXED — reset counters when run starts
         roundElapsed = 0f;
         jumps = 0;
         obstaclesSpawned = 0;
@@ -103,7 +102,6 @@ public class GameDayManager : MonoBehaviour
         SelectPlayButton();
     }
 
-    //  FIXED — this was REMOVED previously; adding it back.
     private void Update()
     {
         if (IsGameActive())
@@ -181,6 +179,8 @@ public class GameDayManager : MonoBehaviour
 
     public void StartDefenseRound()
     {
+        AudioManager.Instance?.PlayWhistle();
+
         if (inDefenseRound) return;
 
         inDefenseRound = true;
@@ -201,8 +201,11 @@ public class GameDayManager : MonoBehaviour
 
         if (playerWon)
             defenseRoundsWon++;
+
         else
         {
+            AudioManager.Instance?.PlayEnemyScore();
+
             defenseRoundsFailed++;
 
             int pointsScored = UnityEngine.Random.value < 0.7f ? 3 : 7;
@@ -314,8 +317,8 @@ public class GameDayManager : MonoBehaviour
 
     public void GameOver()
     {
-        //  CRITICAL FIX — log BEFORE resetting anything
         LogGameDayRun();
+
 
         if (player != null)
             player.gameObject.SetActive(false);

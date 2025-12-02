@@ -49,5 +49,6 @@ public class Helmet : MonoBehaviour, ICollectible
     public void Collect(Player player)
     {
         player.GainHelmet(healthGain);
+        AudioManager.Instance?.PlayHelmetCollect();
     }
 }

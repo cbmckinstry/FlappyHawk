@@ -1800,18 +1800,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fccdcea4429deca48838c1d4a42a4e18, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioManager
-  sfxSource: {fileID: 445800379}
-  musicSource: {fileID: 133980378}
+  sfxSource: {fileID: 0}
+  musicSource: {fileID: 0}
   menuMusic: {fileID: 8300000, guid: e1f59022d9032064bb920735f24b462a, type: 3}
   iowaMusic: {fileID: 8300000, guid: afad937a7291d2a4b99e3424160a8f4f, type: 3}
   gameDayMusic: {fileID: 8300000, guid: fcf73d2082b4db24590b06183bf38a44, type: 3}
-  clickSfx: {fileID: 8300000, guid: f8e25c418e0862f4389c84055a7f4a45, type: 3}
-  cornCollectSfx: {fileID: 8300000, guid: a8d3d67eaa0f8724398bdc1ce5ddf21e, type: 3}
-  dieSfx: {fileID: 8300000, guid: 6037d24c8306e434696ce1ef714b9ea4, type: 3}
-  fieldGoalScoreSfx: {fileID: 8300000, guid: b99034327ff984e4f9fe12e55a6fbbc0, type: 3}
-  touchdownScoreSfx: {fileID: 8300000, guid: f3c167b1e5664874497115454510e5ef, type: 3}
-  tackleSfx: {fileID: 8300000, guid: acd69ad976d2cd747934c255e98be577, type: 3}
+  clickSfx: {fileID: 8300000, guid: 25c3ed9f2dc14b144b19f69fe205f777, type: 3}
+  cornCollectSfx: {fileID: 8300000, guid: 6fd8e78fb4cace34c96676560c0c6501, type: 3}
+  gameOverSfx: {fileID: 8300000, guid: 6037d24c8306e434696ce1ef714b9ea4, type: 3}
+  fieldGoalScoreSfx: {fileID: 8300000, guid: 1b752733c5cad474abe90219f52a1d89, type: 3}
+  touchdownScoreSfx: {fileID: 8300000, guid: a050bab36d637104cb9d422e5069b487, type: 3}
+  tackleSfx: {fileID: 8300000, guid: 2bc239b3d1140a045865269eab1c27a2, type: 3}
   wingFlapSfx: {fileID: 8300000, guid: 769015e9a1323ee4da125a0c9469da2f, type: 3}
+  enemyScoreSfx: {fileID: 8300000, guid: 3896d141a80527343be2599d827d84c0, type: 3}
+  helmetCollectSfx: {fileID: 8300000, guid: 5884da7cf447a7d4abd0bf3f0edde201, type: 3}
+  hoverSfx: {fileID: 8300000, guid: 42ef3bdedb2dccf408157646ab4fa66f, type: 3}
+  magnetCollectSfx: {fileID: 8300000, guid: c772af84b1538664e8b8fb6215ba9b7e, type: 3}
+  speedBoostSfx: {fileID: 8300000, guid: 71ea6069ed11f5348b3bb9002b5c91f1, type: 3}
+  whistleSfx: {fileID: 8300000, guid: 8d72df8af9de6f34bb68783d94b52a12, type: 3}
+  gruntSfx: {fileID: 8300000, guid: 75311c46ef49a104b910fb38239be01d, type: 3}
+  splatSfx: {fileID: 8300000, guid: eee5f5c95c5b84643bb08bf0bb9933a0, type: 3}
   masterVolume: 10
   sfxVolume: 10
   musicVolume: 2
