@@ -1423,7 +1423,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -150}
+  m_AnchoredPosition: {x: 0, y: -125}
   m_SizeDelta: {x: 1200, y: 600}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &125089374
@@ -1448,24 +1448,31 @@ MonoBehaviour:
       m_Calls: []
   m_text: '- Collect corn kernels to score points
 
+    - Magnets increase the number
+    of kernals spawned and auto collect kernels.
+
+    - Wind Boosts will boost you
+    forward and grant temporary invincibility.
+
     - Avoid silos, wind turbines,
     and balloons
 
-    - In Hard mode, watch out for tornados that shoot mini ones
+    - In Hard mode, watch out for tornados that shoot mini ones.
 
     -
-    Pick up a helmet for one free hit
+    Mini Tornados will push the player in a random direction up or down.
 
 
 
-    - On offense: Collect footballs and
-    drop or carry them into the field goal to score and avoid Cyclone birds flying
-    your way
+    -
+    On offense: Collect footballs and drop or carry them into the field goal to score
+    and avoid Cyclone birds flying your way
 
-    - Press E to drop footballs
+    - Press E to drop footballs, or
+    use bumper triggers on controller.
 
     - On defense: Aim to hit the opposing
-    birds
+    ball carrier bird.
 
     - Pick up a helmet for one free hit
 
@@ -1496,8 +1503,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 46
-  m_fontSizeBase: 46
+  m_fontSize: 35
+  m_fontSizeBase: 35
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
