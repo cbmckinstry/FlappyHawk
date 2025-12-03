@@ -53,6 +53,7 @@ public class IowaManager : MonoBehaviour
 
     private void Awake()
     {
+
         Instance = this;
         Application.targetFrameRate = 60;
 
@@ -163,7 +164,10 @@ public class IowaManager : MonoBehaviour
 
     public void GameOver()
     {
+        if (!CustomSpawnSettings.IsCustomIowa)
+        {
         LogIowaRun();
+        }
 
         if (player != null)
             player.gameObject.SetActive(false);
@@ -216,6 +220,7 @@ public class IowaManager : MonoBehaviour
     private void ApplyDifficulty()
     {
         float spawnRate;
+        Sprite currentSprite;
         int maxHealth;
 
         switch (currentDifficulty)
@@ -249,7 +254,7 @@ public class IowaManager : MonoBehaviour
     private void UpdatePlayerHealthDisplay()
     {
         if (player == null)
-            player = FindFirstObjectByType<Player>();
+            player = FindObjectOfType<Player>();
 
         if (playerHealthText == null)
             playerHealthText = GameObject.Find("HealthNumber")?.GetComponent<TextMeshProUGUI>();

@@ -93,10 +93,25 @@ private const float OFFENSE_TO_DEFENSE_DELAY = 0f;
 private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
 
-
-
     private void OnEnable()
     {
+        if (CustomSpawnSettings.IsCustomIowa)
+    {
+        obstacleSpawnChance = CustomSpawnSettings.obstacleSpawnChance;
+
+        balloonWeight     = CustomSpawnSettings.balloonWeight;
+        siloWeight        = CustomSpawnSettings.siloWeight;
+        turbineWeight     = CustomSpawnSettings.turbineWeight;
+        cycloneBirdWeight = CustomSpawnSettings.cycloneBirdWeight;
+        tornadoWeight     = CustomSpawnSettings.tornadoWeight;
+
+        cornKernelWeight  = CustomSpawnSettings.cornKernelWeight;
+        helmetWeight      = CustomSpawnSettings.helmetWeight;
+        windBoostWeight   = CustomSpawnSettings.windBoostWeight;
+        cornMagnetWeight  = CustomSpawnSettings.cornMagnetWeight;
+    }
+
+
         GameManager.OnSpawnRateChanged += HandleSpawnRateChanged;
 
         spawnRate = GameManager.CurrentSpawnRate;
@@ -146,8 +161,8 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
     private void UpdateGameDaySpawning()
 {
-    GameDayManager gameDayMgr = FindFirstObjectByType<GameDayManager>();
-        if (gameDayMgr == null) return;
+    GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
+    if (gameDayMgr == null) return;
 
     // --- Edge-triggered transition handling (defense <-> offense) ---
     if (gameDayMgr.InDefenseRound != prevInDefenseRound)
@@ -321,7 +336,7 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
         }
 
         gameDayWavesCompleted++;
-        FindFirstObjectByType<GameDayManager>()?.OnWaveCompleted();
+        FindObjectOfType<GameDayManager>()?.OnWaveCompleted();
         waveSpawnCooldown = WAVE_SPAWN_DELAY;
     }
 
@@ -380,7 +395,7 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
         }
 
         Instantiate(helmetPrefab, spawnPos, Quaternion.identity);
-        FindFirstObjectByType<GameDayManager>()?.OnWaveCompleted();
+        FindObjectOfType<GameDayManager>()?.OnWaveCompleted();
         waveSpawnCooldown = WAVE_SPAWN_DELAY;
     }
 
@@ -548,8 +563,8 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
     goalPostsThisDrive = 0;
     prevInDefenseRound = true;
     
-    var gdm = FindFirstObjectByType<GameDayManager>();
-        prevInDefenseRound = gdm != null ? gdm.InDefenseRound : false;
+    var gdm = FindObjectOfType<GameDayManager>();
+    prevInDefenseRound = gdm != null ? gdm.InDefenseRound : false;
 
     defenseCarrierSpawned = false;
     defenseTimer = 0f;
@@ -592,15 +607,15 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
     public void ClearAllGameDayActors()
     {
-        var birds = FindObjectsByType<CycloneBird>(FindObjectsSortMode.None);
+        var birds = FindObjectsOfType<CycloneBird>();
         foreach (var bird in birds)
             Destroy(bird.gameObject);
 
-        var carriers = FindObjectsByType<BallCarrierBird>(FindObjectsSortMode.None);
+        var carriers = FindObjectsOfType<BallCarrierBird>();
         foreach (var carrier in carriers)
             Destroy(carrier.gameObject);
 
-        var footballs = FindObjectsByType<Football>(FindObjectsSortMode.None);
+        var footballs = FindObjectsOfType<Football>();
         foreach (var football in footballs)
             Destroy(football.gameObject);
     }
