@@ -167,6 +167,8 @@ public class MainMenu : MonoBehaviour
 
     private void StartGame(GameManager.Difficulty difficulty, string sceneName, GameManager.GameDayDifficulty? gameDayDiff = null)
     {
+
+        CustomSpawnSettings.IsCustomIowa = false;
         PlayClick();
 
         // Clear UI selection before transitioning
