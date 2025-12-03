@@ -1,10 +1,12 @@
 ﻿using System;
+using System.IO;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
+using System.Linq;
 
 public class IowaManager : MonoBehaviour
 {
@@ -20,8 +22,12 @@ public class IowaManager : MonoBehaviour
 
     // UI
     [SerializeField] private TextMeshProUGUI scoreText;
-    [SerializeField] private TextMeshProUGUI helmetDurabilityText;
     [SerializeField] private TextMeshProUGUI playerHealthText;
+
+    [Header("Game Over UI")]
+    [SerializeField] private TextMeshProUGUI goCurrentScoreText;
+    [SerializeField] private TextMeshProUGUI goHighScoreText;
+    [SerializeField] private TextMeshProUGUI goModeDifficultyText;
 
     [Header("Tuning")]
     [SerializeField] private float scrollSpeed = 5f;
@@ -60,7 +66,6 @@ public class IowaManager : MonoBehaviour
 
         // Make sure UI labels are shown normally
         scoreText?.gameObject.SetActive(true);
-        helmetDurabilityText?.gameObject.SetActive(true);
         playerHealthText?.gameObject.SetActive(true);
 
         // Hide player object at scene load
@@ -111,7 +116,6 @@ public class IowaManager : MonoBehaviour
         gameOver?.SetActive(false);
 
         scoreText?.gameObject.SetActive(true);
-        helmetDurabilityText?.gameObject.SetActive(true);
         playerHealthText?.gameObject.SetActive(true);
 
 
@@ -161,17 +165,23 @@ public class IowaManager : MonoBehaviour
     {
         LogIowaRun();
 
-
-        // Hide player when Game Over happens
         if (player != null)
             player.gameObject.SetActive(false);
+
+        if (goCurrentScoreText != null)
+            goCurrentScoreText.text = score.ToString();
+
+        if (goModeDifficultyText != null)
+            goModeDifficultyText.text = $"Iowa — {CurrentDifficulty}";
+
+        int highScore = LoadIowaHighScore(CurrentDifficulty.ToString());
+        if (goHighScoreText != null)
+            goHighScoreText.text = highScore.ToString();
 
         gameOver.SetActive(true);
         playButton.SetActive(true);
         menuButton.SetActive(true);
-
         readyButton?.SetActive(false);
-        playerNameInput?.gameObject.SetActive(false);
 
         Pause();
         SelectPlayButton();
@@ -237,18 +247,6 @@ public class IowaManager : MonoBehaviour
     public void RegisterObstacle() => obstaclesSpawned++;
     public void RegisterJump() => jumps++;
 
-    private void UpdateHelmetDurabilityDisplay()
-    {
-        if (player == null)
-            player = FindObjectOfType<Player>();
-
-        if (helmetDurabilityText == null)
-            helmetDurabilityText = GameObject.Find("HelmetNumber")?.GetComponent<TextMeshProUGUI>();
-
-        if (player != null && helmetDurabilityText != null)
-            helmetDurabilityText.text = player.GetHelmetDurability().ToString();
-    }
-
     private void UpdatePlayerHealthDisplay()
     {
         if (player == null)
@@ -263,7 +261,6 @@ public class IowaManager : MonoBehaviour
 
     private void UpdateAllDisplays()
     {
-        UpdateHelmetDurabilityDisplay();
         UpdatePlayerHealthDisplay();
     }
 
@@ -330,5 +327,47 @@ public class IowaManager : MonoBehaviour
         };
 
         RunDataLogger.AppendRun(data);
+    }
+
+    private int LoadIowaHighScore(string difficultyFilter)
+    {
+        string folder = RunDataLogger.GetLogFolder();
+        string filePath = Path.Combine(folder, "game_runs.csv");
+
+        if (!File.Exists(filePath))
+            return 0;
+
+        try
+        {
+            var lines = File.ReadAllLines(filePath).Skip(1); // skip header
+            int best = 0;
+
+            foreach (var line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                var parts = line.Split(',');
+                if (parts.Length < 5)
+                    continue;
+
+                string mode = parts[2].Trim().Trim('"');    // game_mode
+                string diff = parts[3].Trim().Trim('"');    // difficulty
+
+                if (mode != "Iowa") continue;
+                if (diff != difficultyFilter) continue;
+
+                if (!int.TryParse(parts[4], out int scoreValue))
+                    continue;
+
+                best = Mathf.Max(best, scoreValue);
+            }
+
+            return best;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 }

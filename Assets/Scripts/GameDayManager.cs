@@ -1,11 +1,13 @@
-using System;using System;
+using System;
+using System.Collections;
+using System.IO;
+using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
-using System.Collections;
 
 public class GameDayManager : MonoBehaviour
 {
@@ -19,12 +21,15 @@ public class GameDayManager : MonoBehaviour
     public GameObject menuButton;
     public TMP_InputField playerNameInput;
 
-    // UI (internal labels)
+    // UI
     [SerializeField] private TextMeshProUGUI modeText;
     private TextMeshProUGUI playerScoreText;
     private TextMeshProUGUI opponentScoreText;
-    [SerializeField] private TextMeshProUGUI helmetDurabilityText;
-    [SerializeField] private TextMeshProUGUI playerHealthText;
+    
+    [Header("Game Over UI")]
+    [SerializeField] private TextMeshProUGUI goCurrentScoreText;
+    [SerializeField] private TextMeshProUGUI goHighScoreText;
+    [SerializeField] private TextMeshProUGUI goModeDifficultyText;
 
     [Header("Tuning")]
     [SerializeField] private float scrollSpeed = 5f;
@@ -309,7 +314,6 @@ public class GameDayManager : MonoBehaviour
         obstaclesSpawned = 0;
 
         OnPlayerDeathReset();
-        UpdateAllDisplays();
         ApplyDifficulty();
 
         UpdateModeDisplay(true);
@@ -319,9 +323,19 @@ public class GameDayManager : MonoBehaviour
     {
         LogGameDayRun();
 
-
         if (player != null)
             player.gameObject.SetActive(false);
+
+        if (goCurrentScoreText != null)
+            goCurrentScoreText.text = playerScore.ToString();
+
+        if (goModeDifficultyText != null)
+            goModeDifficultyText.text = $"GameDay — {CurrentGameDayDifficulty}";
+
+        int highScore = LoadHighScore(CurrentGameDayDifficulty.ToString());
+        if (goHighScoreText != null)
+            goHighScoreText.text = highScore.ToString();
+
 
         gameOver?.SetActive(true);
         playButton.SetActive(true);
@@ -360,45 +374,6 @@ public class GameDayManager : MonoBehaviour
         spawner?.ResetSpawner();
     }
 
-    private void UpdateHelmetDurabilityDisplay()
-    {
-        if (player == null)
-            player = FindObjectOfType<Player>();
-
-        if (helmetDurabilityText == null)
-            helmetDurabilityText = GameObject.Find("HelmetNumber")?.GetComponent<TextMeshProUGUI>();
-
-        if (player != null && helmetDurabilityText != null)
-            helmetDurabilityText.text = player.GetHelmetDurability().ToString();
-    }
-
-    private void UpdatePlayerHealthDisplay()
-    {
-        if (player == null)
-            player = FindObjectOfType<Player>();
-
-        if (playerHealthText == null)
-            playerHealthText = GameObject.Find("HealthNumber")?.GetComponent<TextMeshProUGUI>();
-
-        if (player != null && playerHealthText != null)
-            playerHealthText.text = player.GetHealth().ToString();
-    }
-
-    private void UpdateAllDisplays()
-    {
-        UpdateHelmetDurabilityDisplay();
-        UpdatePlayerHealthDisplay();
-    }
-
-    public void OnPlayerDamaged(int helmetDurability)
-    {
-        UpdateAllDisplays();
-    }
-
-    public void OnPlayerHealed(int helmetDurability)
-    {
-        UpdateAllDisplays();
-    }
 
     public void ReturnToMainMenu()
     {
@@ -461,4 +436,56 @@ public class GameDayManager : MonoBehaviour
 
         modeText.gameObject.SetActive(false);
     }
+
+    private int LoadHighScore(string difficultyFilter)
+    {
+        string folder = RunDataLogger.GetLogFolder();
+        string filePath = Path.Combine(folder, "leaderboard.csv");
+
+        if (!File.Exists(filePath))
+            return 0;
+
+        try
+        {
+            var lines = File.ReadAllLines(filePath).Skip(1); // skip header
+            int best = 0;
+
+            foreach (var line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                var parts = line.Split(',');
+                if (parts.Length < 4)
+                    continue;
+
+                string name = parts[0].Trim().Trim('"');
+                string scoreStr = parts[1].Trim();
+                string mode = parts[2].Trim().Trim('"');
+                string diff = parts[3].Trim().Trim('"');
+
+                // Only load from GameDay
+                if (mode != "GameDay")
+                    continue;
+
+                // Only load from MATCHING difficulty
+                if (diff != difficultyFilter)
+                    continue;
+
+                if (!int.TryParse(scoreStr, out int score))
+                    continue;
+
+                if (score > best)
+                    best = score;
+            }
+
+            return best;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[GameDayManager] Failed to load leaderboard high score: {ex}");
+            return 0;
+        }
+    }
+
 }

@@ -137,6 +137,11 @@ public static class RunDataLogger
             return $"\"{s.Replace("\"", "\"\"")}\"";
         return s;
     }
+
+    public static string GetLogFolder()
+    {
+        return LogsFolder;
+    }
 }
 
 
