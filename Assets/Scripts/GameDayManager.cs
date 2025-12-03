@@ -25,7 +25,7 @@ public class GameDayManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI modeText;
     private TextMeshProUGUI playerScoreText;
     private TextMeshProUGUI opponentScoreText;
-    
+
     [Header("Game Over UI")]
     [SerializeField] private TextMeshProUGUI goCurrentScoreText;
     [SerializeField] private TextMeshProUGUI goHighScoreText;
@@ -107,6 +107,7 @@ public class GameDayManager : MonoBehaviour
         SelectPlayButton();
     }
 
+    //  FIXED ï¿½ this was REMOVED previously; adding it back.
     private void Update()
     {
         if (IsGameActive())
@@ -321,6 +322,7 @@ public class GameDayManager : MonoBehaviour
 
     public void GameOver()
     {
+        //  CRITICAL FIX ï¿½ log BEFORE resetting anything
         LogGameDayRun();
 
         if (player != null)
@@ -330,7 +332,7 @@ public class GameDayManager : MonoBehaviour
             goCurrentScoreText.text = playerScore.ToString();
 
         if (goModeDifficultyText != null)
-            goModeDifficultyText.text = $"GameDay — {CurrentGameDayDifficulty}";
+            goModeDifficultyText.text = $"GameDay ï¿½ {CurrentGameDayDifficulty}";
 
         int highScore = LoadHighScore(CurrentGameDayDifficulty.ToString());
         if (goHighScoreText != null)

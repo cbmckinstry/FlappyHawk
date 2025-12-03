@@ -122,20 +122,20 @@ public class MainMenu : MonoBehaviour
     }
 
     private void ResetToMain()
-{
-    PlayClick();
-    iowaMenuPanel.SetActive(false);
-    gamedayMenuPanel.SetActive(false);
-    settingsMenuPanel.SetActive(false);
-    howToPlayMenuPanel.SetActive(false);
-    creditsMenuPanel.SetActive(false);
-    leaderboardPanel.SetActive(false);
+    {
+        PlayClick();
+        iowaMenuPanel.SetActive(false);
+        gamedayMenuPanel.SetActive(false);
+        settingsMenuPanel.SetActive(false);
+        howToPlayMenuPanel.SetActive(false);
+        creditsMenuPanel.SetActive(false);
+        leaderboardPanel.SetActive(false);
 
-    if (iowaCustomMenuPanel != null)
-        iowaCustomMenuPanel.SetActive(false);
+        if (iowaCustomMenuPanel != null)
+            iowaCustomMenuPanel.SetActive(false);
 
-    mainMenuPanel.SetActive(true);
-}
+        mainMenuPanel.SetActive(true);
+    }
 
 
     // ---------------- START BUTTONS ----------------
@@ -144,23 +144,23 @@ public class MainMenu : MonoBehaviour
     public void StartHard() => StartGame(GameManager.Difficulty.Hard, "IowaScene");
 
     public void StartIowaCustom()
-{
-    PlayClick();
+    {
+        PlayClick();
 
-    // Clear selection
-    EventSystem.current?.SetSelectedGameObject(null);
-    selectedButton = null;
+        // Clear selection
+        EventSystem.current?.SetSelectedGameObject(null);
+        selectedButton = null;
 
-    // Custom runs use whatever BaseDifficulty you want (Normal by default)
-    CustomSpawnSettings.IsCustomIowa = true;
-    CustomSpawnSettings.BaseDifficulty = GameManager.Difficulty.Normal;
+        // Custom runs use whatever BaseDifficulty you want (Normal by default)
+        CustomSpawnSettings.IsCustomIowa = true;
+        CustomSpawnSettings.BaseDifficulty = GameManager.Difficulty.Normal;
 
-    // Also set StartDifficulty so IowaManager picks the right baseline
-    GameManager.StartDifficulty = CustomSpawnSettings.BaseDifficulty;
+        // Also set StartDifficulty so IowaManager picks the right baseline
+        GameManager.StartDifficulty = CustomSpawnSettings.BaseDifficulty;
 
-    // Load Iowa scene
-    SceneManager.LoadScene("IowaScene");
-}
+        // Load Iowa scene
+        SceneManager.LoadScene("IowaScene");
+    }
 
     public void StartCollege() => StartGame(GameManager.Difficulty.Easy, "GamedayScene", GameManager.GameDayDifficulty.College);
     public void StartPro() => StartGame(GameManager.Difficulty.Normal, "GamedayScene", GameManager.GameDayDifficulty.Pro);

@@ -94,8 +94,10 @@ public class GameManager : MonoBehaviour
     // ============================= LEGACY HELPERS =============================
     public static void IncreaseScore(int amount = 1)
     {
-        IowaInstance?.IncreaseScore(amount);
-        GameDayInstance?.IncreaseScore(amount);
+        if (IowaInstance != null)
+            IowaInstance.IncreaseScore(amount);
+        else if (GameDayInstance != null)
+            GameDayInstance.IncreaseScore(amount);
     }
 
     public static void IncreaseOpponentScore(int amount = 1)

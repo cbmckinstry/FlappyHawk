@@ -166,7 +166,7 @@ public class IowaManager : MonoBehaviour
     {
         if (!CustomSpawnSettings.IsCustomIowa)
         {
-        LogIowaRun();
+            LogIowaRun();
         }
 
         if (player != null)
@@ -182,11 +182,14 @@ public class IowaManager : MonoBehaviour
         if (goHighScoreText != null)
             goHighScoreText.text = highScore.ToString();
 
+        // Hide player when Game Over happens
+        if (player != null)
+            player.gameObject.SetActive(false);
+
         gameOver.SetActive(true);
         playButton.SetActive(true);
         menuButton.SetActive(true);
         readyButton?.SetActive(false);
-
         Pause();
         SelectPlayButton();
     }
