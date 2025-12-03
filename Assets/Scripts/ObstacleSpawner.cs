@@ -55,7 +55,7 @@ public class Spawner : MonoBehaviour
     private float defenseTimer = 0f;
     private const float CARRIER_PRE_SPAWN_BLOCK = 1.0f;
     private const float CARRIER_WAVE_BLOCK_DURATION = 2.0f;
-    private float carrierWaveBlockTimer = 0f;    
+    private float carrierWaveBlockTimer = 0f;
 
     private float timer;
     private bool parentTornadoSpawned = false;
@@ -69,48 +69,56 @@ public class Spawner : MonoBehaviour
     private const float WAVE_SPAWN_DELAY = 0.5f;
     private int wavesSinceLastHelmet = 0;
 
+    // Goal posts (Game Day)
+    [SerializeField] private float goalPostSpawnRate = 10f; // seconds between posts on offense
+    [SerializeField] private int   maxGoalPostsPerDrive = 4; // cap per drive
 
+    private float goalPostTimer = 0f;
+    private int   goalPostsThisDrive = 0;             // number spawned this drive
+    private int   goalPostsDestroyedThisDrive = 0;    // number destroyed this drive
+    private bool  prevInDefenseRound = true;
 
-// Goal posts (Game Day)
-[SerializeField] private float goalPostSpawnRate = 10f; // seconds between posts on offense
-[SerializeField] private int   maxGoalPostsPerDrive = 4; // cap per drive
+    // --- Kickstart window to ensure offense resumes after defense ---
+    [SerializeField] private float offenseKickstartSeconds = 1.5f; // can adjust in Inspector
+    private float offenseKickstartTimer = 0f;
 
-private float goalPostTimer = 0f;
-private int   goalPostsThisDrive = 0;
-private bool  prevInDefenseRound = true;
+    // Optional: track instances if you want to clean them up on defense/reset
+    private readonly List<GameObject> activeGoalPosts = new();
 
-// --- Kickstart window to ensure offense resumes after defense ---
-[SerializeField] private float offenseKickstartSeconds = 1.5f; // can adjust in Inspector
-private float offenseKickstartTimer = 0f;
+    // Mode swap delay
+    private float modeSwapDelayTimer = 0f;
+    private const float OFFENSE_TO_DEFENSE_DELAY = 0f;
+    private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
+    // Helper component that notifies Spawner when a goal post is destroyed
+    private class GoalPostTracker : MonoBehaviour
+    {
+        public Spawner owner;
 
-// Optional: track instances if you want to clean them up on defense/reset
-private readonly List<GameObject> activeGoalPosts = new();
-
-// Mode swap delay
-private float modeSwapDelayTimer = 0f;
-private const float OFFENSE_TO_DEFENSE_DELAY = 0f;
-private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
-
+        private void OnDestroy()
+        {
+            if (owner != null)
+                owner.OnGoalPostDestroyed(gameObject);
+        }
+    }
 
     private void OnEnable()
     {
         if (CustomSpawnSettings.IsCustomIowa)
-    {
-        obstacleSpawnChance = CustomSpawnSettings.obstacleSpawnChance;
+        {
+            obstacleSpawnChance = CustomSpawnSettings.obstacleSpawnChance;
 
-        balloonWeight     = CustomSpawnSettings.balloonWeight;
-        siloWeight        = CustomSpawnSettings.siloWeight;
-        turbineWeight     = CustomSpawnSettings.turbineWeight;
-        cycloneBirdWeight = CustomSpawnSettings.cycloneBirdWeight;
-        tornadoWeight     = CustomSpawnSettings.tornadoWeight;
+            balloonWeight     = CustomSpawnSettings.balloonWeight;
+            siloWeight        = CustomSpawnSettings.siloWeight;
+            turbineWeight     = CustomSpawnSettings.turbineWeight;
+            cycloneBirdWeight = CustomSpawnSettings.cycloneBirdWeight;
+            tornadoWeight     = CustomSpawnSettings.tornadoWeight;
 
-        cornKernelWeight  = CustomSpawnSettings.cornKernelWeight;
-        helmetWeight      = CustomSpawnSettings.helmetWeight;
-        windBoostWeight   = CustomSpawnSettings.windBoostWeight;
-        cornMagnetWeight  = CustomSpawnSettings.cornMagnetWeight;
-    }
-
+            cornKernelWeight  = CustomSpawnSettings.cornKernelWeight;
+            helmetWeight      = CustomSpawnSettings.helmetWeight;
+            windBoostWeight   = CustomSpawnSettings.windBoostWeight;
+            cornMagnetWeight  = CustomSpawnSettings.cornMagnetWeight;
+        }
 
         GameManager.OnSpawnRateChanged += HandleSpawnRateChanged;
 
@@ -160,160 +168,163 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
     }
 
     private void UpdateGameDaySpawning()
-{
-    GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
-    if (gameDayMgr == null) return;
-
-    // --- Edge-triggered transition handling (defense <-> offense) ---
-    if (gameDayMgr.InDefenseRound != prevInDefenseRound)
-{
-    if (gameDayMgr.InDefenseRound)
     {
-        // Entered DEFENSE (no delay)
-        modeSwapDelayTimer = OFFENSE_TO_DEFENSE_DELAY;
-        defenseCarrierSpawned = false;
-        defenseTimer = 0f;
-        carrierWaveBlockTimer = 0f;
-        goalPostsThisDrive = 0;
-        goalPostTimer = 0f;
-    }
-    else
-    {
-        // Entered OFFENSE (1 second delay)
-        modeSwapDelayTimer = DEFENSE_TO_OFFENSE_DELAY;
-        ballSpawned = false;
-        timer = 0f;
-        waveSpawnCooldown = WAVE_SPAWN_DELAY;
-        goalPostsThisDrive = 0;
-        goalPostTimer = 0f;
-        carrierWaveBlockTimer = 0f;
+        GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
+        if (gameDayMgr == null) return;
 
-        offenseKickstartTimer = offenseKickstartSeconds;
-    }
-    prevInDefenseRound = gameDayMgr.InDefenseRound;
-}
-
-    // --- Mode swap delay: prevent spawning for 2 seconds after mode change ---
-    if (modeSwapDelayTimer > 0f)
-    {
-        modeSwapDelayTimer -= Time.deltaTime;
-        return;
-    }
-
-    // --- DEFENSE: spawn cyclone birds until ball-carrier spawns ---
-    if (gameDayMgr.InDefenseRound)
-{
-    // Spawn birds until the carrier spawns
-    if (!defenseCarrierSpawned)
-    {
-        // Wait before spawning the single ball-carrier bird
-        defenseTimer += Time.deltaTime;
-        float timeUntilCarrier = defenseCarrierDelay - defenseTimer;
-        bool carrierSpawningThisFrame = defenseTimer >= defenseCarrierDelay;
-
-        if (timeUntilCarrier <= CARRIER_PRE_SPAWN_BLOCK && carrierWaveBlockTimer <= 0f)
-            carrierWaveBlockTimer = CARRIER_WAVE_BLOCK_DURATION;
-
-        if (carrierWaveBlockTimer > 0f)
-            carrierWaveBlockTimer -= Time.deltaTime;
-
-        bool waveBlocked = carrierWaveBlockTimer > 0f;
-
-        // Spawn birds on normal cadence, but NOT if carrier wave block is active
-        if (!waveBlocked)
+        // --- Edge-triggered transition handling (defense <-> offense) ---
+        if (gameDayMgr.InDefenseRound != prevInDefenseRound)
         {
-            timer += Time.deltaTime;
-            if (timer >= spawnRate)
+            if (gameDayMgr.InDefenseRound)
             {
-                timer = 0f;
-                SpawnGameDayWave(true);
-            }
-        }
-
-        // Spawn the single ball-carrier bird
-        if (carrierSpawningThisFrame)
-        {
-            SpawnBallCarrierAtScreenCenter();
-            defenseCarrierSpawned = true;
-        }
-    }
-
-    // Stop spawning after carrier appears
-    return;
-}
-
-    // --- OFFENSE: (normal drive) goal-post trickle + ball and bird waves ---
-
-    // Continuous goal-post spawning while ON OFFENSE (before early returns)
-    if (!gameDayMgr.IsSpawningPaused())
-    {
-        if (goalPostsThisDrive < maxGoalPostsPerDrive)
-        {
-            goalPostTimer += Time.deltaTime;
-            if (goalPostTimer >= goalPostSpawnRate)
-            {
-                SpawnGoalPosts(gameDayMgr);
-                goalPostsThisDrive++;
+                // Entered DEFENSE (no delay)
+                modeSwapDelayTimer = OFFENSE_TO_DEFENSE_DELAY;
+                defenseCarrierSpawned = false;
+                defenseTimer = 0f;
+                carrierWaveBlockTimer = 0f;
+                goalPostsThisDrive = 0;
                 goalPostTimer = 0f;
+                goalPostsDestroyedThisDrive = 0;   // reset destroyed count on entering defense
+            }
+            else
+            {
+                // Entered OFFENSE (1 second delay)
+                modeSwapDelayTimer = DEFENSE_TO_OFFENSE_DELAY;
+                ballSpawned = false;
+                timer = 0f;
+                waveSpawnCooldown = WAVE_SPAWN_DELAY;
+                goalPostsThisDrive = 0;
+                goalPostTimer = 0f;
+                carrierWaveBlockTimer = 0f;
+
+                offenseKickstartTimer = offenseKickstartSeconds;
+
+                goalPostsDestroyedThisDrive = 0;   // fresh drive, fresh destroyed count
+            }
+            prevInDefenseRound = gameDayMgr.InDefenseRound;
+        }
+
+        // --- Mode swap delay: prevent spawning for a bit after mode change ---
+        if (modeSwapDelayTimer > 0f)
+        {
+            modeSwapDelayTimer -= Time.deltaTime;
+            return;
+        }
+
+        // --- DEFENSE: spawn cyclone birds until ball-carrier spawns ---
+        if (gameDayMgr.InDefenseRound)
+        {
+            // Spawn birds until the carrier spawns
+            if (!defenseCarrierSpawned)
+            {
+                // Wait before spawning the single ball-carrier bird
+                defenseTimer += Time.deltaTime;
+                float timeUntilCarrier = defenseCarrierDelay - defenseTimer;
+                bool carrierSpawningThisFrame = defenseTimer >= defenseCarrierDelay;
+
+                if (timeUntilCarrier <= CARRIER_PRE_SPAWN_BLOCK && carrierWaveBlockTimer <= 0f)
+                    carrierWaveBlockTimer = CARRIER_WAVE_BLOCK_DURATION;
+
+                if (carrierWaveBlockTimer > 0f)
+                    carrierWaveBlockTimer -= Time.deltaTime;
+
+                bool waveBlocked = carrierWaveBlockTimer > 0f;
+
+                // Spawn birds on normal cadence, but NOT if carrier wave block is active
+                if (!waveBlocked)
+                {
+                    timer += Time.deltaTime;
+                    if (timer >= spawnRate)
+                    {
+                        timer = 0f;
+                        SpawnGameDayWave(true);
+                    }
+                }
+
+                // Spawn the single ball-carrier bird
+                if (carrierSpawningThisFrame)
+                {
+                    SpawnBallCarrierAtScreenCenter();
+                    defenseCarrierSpawned = true;
+                }
+            }
+
+            // Stop spawning after carrier appears
+            return;
+        }
+
+        // --- OFFENSE: (normal drive) goal-post trickle + ball and bird waves ---
+
+        // Goal posts: only spawn up to maxGoalPostsPerDrive per drive
+        if (!gameDayMgr.IsSpawningPaused())
+        {
+            if (goalPostsThisDrive < maxGoalPostsPerDrive)
+            {
+                goalPostTimer += Time.deltaTime;
+                if (goalPostTimer >= goalPostSpawnRate)
+                {
+                    SpawnGoalPosts(gameDayMgr);
+                    goalPostsThisDrive++;
+                    goalPostTimer = 0f;
+                }
+            }
+        }
+
+        // Spawn the football once per drive
+        if (!gameDayMgr.IsSpawningPaused() && !ballSpawned)
+        {
+            SpawnGameDayBall();
+            ballSpawned = true;
+            return;
+        }
+
+        // Respect any pause flags
+        // Kickstart window: temporarily ignore lingering pause flags
+        bool paused = gameDayMgr.IsSpawningPaused();
+        bool carrierNow = gameDayMgr.IsBallCarrierSpawningThisFrame();
+
+        if (!gameDayMgr.InDefenseRound)
+        {
+            // Never spawn waves if carrier is active, even during kickstart
+            if (carrierNow) return;
+
+            if (offenseKickstartTimer > 0f)
+            {
+                offenseKickstartTimer -= Time.deltaTime;
+                // During kickstart, ignore pause flags
+            }
+            else
+            {
+                if (paused) return;
+            }
+        }
+
+        // Wave cadence
+        if (waveSpawnCooldown > 0f)
+        {
+            waveSpawnCooldown -= Time.deltaTime;
+            return;
+        }
+
+        timer += Time.deltaTime;
+        if (timer >= spawnRate)
+        {
+            timer = 0f;
+
+            // “Helmet every ~5 waves” logic
+            if (wavesSinceLastHelmet >= 5 && Random.value < 0.5f)
+            {
+                SpawnGameDayHelmet();
+                wavesSinceLastHelmet = 0;
+            }
+            else
+            {
+                // OFFENSE: spawn multi-bird wave
+                SpawnGameDayWave(false);
+                wavesSinceLastHelmet++;
             }
         }
     }
-
-    // Spawn the football once per drive
-    if (!gameDayMgr.IsSpawningPaused() && !ballSpawned)
-    {
-        SpawnGameDayBall();
-        ballSpawned = true;
-        return;
-    }
-
-    // Respect any pause flags
-    // Kickstart window: temporarily ignore lingering pause flags
-    bool paused = gameDayMgr.IsSpawningPaused();
-    bool carrierNow = gameDayMgr.IsBallCarrierSpawningThisFrame();
-
-    if (!gameDayMgr.InDefenseRound)
-    {
-    // Never spawn waves if carrier is active, even during kickstart
-    if (carrierNow) return;
-
-    if (offenseKickstartTimer > 0f)
-    {
-        offenseKickstartTimer -= Time.deltaTime;
-        // During kickstart, ignore pause flags
-    }
-    else
-    {
-        if (paused) return;
-    }
-    }
-
-    // Wave cadence
-    if (waveSpawnCooldown > 0f)
-    {
-        waveSpawnCooldown -= Time.deltaTime;
-        return;
-    }
-
-    timer += Time.deltaTime;
-    if (timer >= spawnRate)
-    {
-        timer = 0f;
-
-        // Your existing “helmet every ~5 waves” logic
-        if (wavesSinceLastHelmet >= 5 && Random.value < 0.5f)
-        {
-            SpawnGameDayHelmet();
-            wavesSinceLastHelmet = 0;
-        }
-        else
-        {
-            // OFFENSE: spawn multi-bird wave
-            SpawnGameDayWave(false);
-            wavesSinceLastHelmet++;
-        }
-    }
-}
 
     private void SpawnGameDayBall()
     {
@@ -400,30 +411,56 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
     }
 
     private void SpawnGoalPosts(GameDayManager gdm)
-{
-    GameObject prefab = gdm.CurrentGameDayDifficulty == GameManager.GameDayDifficulty.Pro
-        ? goalPostProPrefab
-        : goalPostEasyPrefab;
-
-    if (prefab == null) return;
-
-    // Spawn near right edge, higher than minHeight to account for increased size
-    Vector3 spawnPos = transform.position;
-    spawnPos.y = minHeight + 1.25f;
-
-    if (Camera.main != null)
     {
-        Vector3 screenRight = Camera.main.ScreenToWorldPoint(new Vector3(Camera.main.pixelWidth, 0, 0));
+        GameObject prefab = gdm.CurrentGameDayDifficulty == GameManager.GameDayDifficulty.Pro
+            ? goalPostProPrefab
+            : goalPostEasyPrefab;
 
-        spawnPos.x = screenRight.x + 0.5f;
+        if (prefab == null) return;
+
+        // Spawn near right edge, higher than minHeight to account for increased size
+        Vector3 spawnPos = transform.position;
+        spawnPos.y = minHeight + 1.25f;
+
+        if (Camera.main != null)
+        {
+            Vector3 screenRight = Camera.main.ScreenToWorldPoint(new Vector3(Camera.main.pixelWidth, 0, 0));
+            spawnPos.x = screenRight.x + 0.5f;
+        }
+
+        var posts = Instantiate(prefab, spawnPos, Quaternion.identity);
+        activeGoalPosts.Add(posts);
+
+        // Attach tracker so Spawner gets notified when this post is destroyed
+        var tracker = posts.AddComponent<GoalPostTracker>();
+        tracker.owner = this;
     }
 
-    var posts = Instantiate(prefab, spawnPos, Quaternion.identity);
-    activeGoalPosts.Add(posts);
-}
+    public void OnGoalPostDestroyed(GameObject post)
+    {
+        activeGoalPosts.Remove(post);
+        goalPostsDestroyedThisDrive++;
 
+        var gdm = FindObjectOfType<GameDayManager>();
+        if (gdm == null) return;
 
+        // Only trigger once per drive, and only from offense
+        if (!gdm.InDefenseRound && goalPostsDestroyedThisDrive >= maxGoalPostsPerDrive)
+        {
+            Debug.Log("[Spawner] 4th goal post destroyed – switching to DEFENSE.");
 
+            // Ensure player cannot still have the ball: destroy any footballs on field
+            var footballs = FindObjectsOfType<Football>();
+            foreach (var fb in footballs)
+                Destroy(fb.gameObject);
+
+            // Reset flag so the spawner won't think there's still a ball
+            ResetGameDayBall();
+
+            // Do NOT despawn birds – they stay on screen
+            gdm.StartDefenseRound();
+        }
+    }
 
     public void SpawnBallCarrierAtScreenCenter()
     {
@@ -442,11 +479,11 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
             GameObject enemy = Instantiate(cycloneBirdPrefab, pos, Quaternion.identity);
             Destroy(enemy.GetComponent<CycloneBird>());
             BallCarrierBird carrier = enemy.AddComponent<BallCarrierBird>();
-            
+
             Sprite sprite = footballSprite;
             if (sprite == null)
                 sprite = Resources.Load<Sprite>("Sprites/Collectibles/Football");
-            
+
             if (sprite != null)
                 carrier.AttachBallSprite(sprite);
             else
@@ -517,7 +554,6 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
         return balloonPrefab ?? siloPrefab ?? turbinePrefab ?? cycloneBirdPrefab ?? tornadoPrefab;
     }
 
-
     private GameObject SelectRandomCollectible()
     {
         float rand = Random.value;
@@ -550,31 +586,31 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
     }
 
     public void ResetSpawner()
-{
-    parentTornadoSpawned = false;
-    timer = 0f;
-    gameDayWavesCompleted = 0;
-    enemiesInCurrentWave = 0;
-    ballSpawned = false;
-    waveSpawnCooldown = 0f;
-    wavesSinceLastHelmet = 0;
+    {
+        parentTornadoSpawned = false;
+        timer = 0f;
+        gameDayWavesCompleted = 0;
+        enemiesInCurrentWave = 0;
+        ballSpawned = false;
+        waveSpawnCooldown = 0f;
+        wavesSinceLastHelmet = 0;
 
-    goalPostTimer = 0f;
-    goalPostsThisDrive = 0;
-    prevInDefenseRound = true;
-    
-    var gdm = FindObjectOfType<GameDayManager>();
-    prevInDefenseRound = gdm != null ? gdm.InDefenseRound : false;
+        goalPostTimer = 0f;
+        goalPostsThisDrive = 0;
+        goalPostsDestroyedThisDrive = 0;
+        prevInDefenseRound = true;
 
-    defenseCarrierSpawned = false;
-    defenseTimer = 0f;
-    carrierWaveBlockTimer = 0f;
+        var gdm = FindObjectOfType<GameDayManager>();
+        prevInDefenseRound = gdm != null ? gdm.InDefenseRound : false;
 
-    offenseKickstartTimer = 0f;
-    modeSwapDelayTimer = 0f;
-    activeGoalPosts.Clear();
-}
+        defenseCarrierSpawned = false;
+        defenseTimer = 0f;
+        carrierWaveBlockTimer = 0f;
 
+        offenseKickstartTimer = 0f;
+        modeSwapDelayTimer = 0f;
+        activeGoalPosts.Clear();
+    }
 
     public void ResetGameDayBall() => ballSpawned = false;
 
