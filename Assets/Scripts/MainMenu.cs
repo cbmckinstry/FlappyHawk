@@ -30,7 +30,7 @@ public class MainMenu : MonoBehaviour
 
     private void FindAllButtons()
     {
-        allButtons = FindObjectsOfType<Button>(includeInactive: true);
+        allButtons = FindObjectsByType<Button>(FindObjectsSortMode.None);
     }
 
     private void SelectFirstButton()

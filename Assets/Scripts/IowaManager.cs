@@ -216,7 +216,6 @@ public class IowaManager : MonoBehaviour
     private void ApplyDifficulty()
     {
         float spawnRate;
-        Sprite currentSprite;
         int maxHealth;
 
         switch (currentDifficulty)
@@ -250,7 +249,7 @@ public class IowaManager : MonoBehaviour
     private void UpdatePlayerHealthDisplay()
     {
         if (player == null)
-            player = FindObjectOfType<Player>();
+            player = FindFirstObjectByType<Player>();
 
         if (playerHealthText == null)
             playerHealthText = GameObject.Find("HealthNumber")?.GetComponent<TextMeshProUGUI>();

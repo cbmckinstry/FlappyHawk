@@ -25,7 +25,7 @@ public class ControllerInputManager : MonoBehaviour
         }
     }
 
-    [SerializeField] private float dpadDeadzone = 0.5f;
+    // [SerializeField] private float dpadDeadzone = 0.5f;
     [SerializeField] private float stickDeadzone = 0.5f;
 
     private Gamepad currentGamepad;
@@ -126,6 +126,7 @@ public class ControllerInputManager : MonoBehaviour
 
         return input;
     }
+
 
     public Vector2 GetMenuInputLeftStick()
     {

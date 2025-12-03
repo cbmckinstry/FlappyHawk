@@ -91,7 +91,7 @@ public class GameDayManager : MonoBehaviour
 
     private void OnEnable()
     {
-        spawner = FindObjectOfType<Spawner>();
+        spawner = FindFirstObjectByType<Spawner>();
 
         UpdateModeDisplay(false);
 

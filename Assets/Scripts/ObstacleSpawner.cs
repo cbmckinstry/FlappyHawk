@@ -146,8 +146,8 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
     private void UpdateGameDaySpawning()
 {
-    GameDayManager gameDayMgr = FindObjectOfType<GameDayManager>();
-    if (gameDayMgr == null) return;
+    GameDayManager gameDayMgr = FindFirstObjectByType<GameDayManager>();
+        if (gameDayMgr == null) return;
 
     // --- Edge-triggered transition handling (defense <-> offense) ---
     if (gameDayMgr.InDefenseRound != prevInDefenseRound)
@@ -321,7 +321,7 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
         }
 
         gameDayWavesCompleted++;
-        FindObjectOfType<GameDayManager>()?.OnWaveCompleted();
+        FindFirstObjectByType<GameDayManager>()?.OnWaveCompleted();
         waveSpawnCooldown = WAVE_SPAWN_DELAY;
     }
 
@@ -380,7 +380,7 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
         }
 
         Instantiate(helmetPrefab, spawnPos, Quaternion.identity);
-        FindObjectOfType<GameDayManager>()?.OnWaveCompleted();
+        FindFirstObjectByType<GameDayManager>()?.OnWaveCompleted();
         waveSpawnCooldown = WAVE_SPAWN_DELAY;
     }
 
@@ -548,8 +548,8 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
     goalPostsThisDrive = 0;
     prevInDefenseRound = true;
     
-    var gdm = FindObjectOfType<GameDayManager>();
-    prevInDefenseRound = gdm != null ? gdm.InDefenseRound : false;
+    var gdm = FindFirstObjectByType<GameDayManager>();
+        prevInDefenseRound = gdm != null ? gdm.InDefenseRound : false;
 
     defenseCarrierSpawned = false;
     defenseTimer = 0f;
@@ -592,15 +592,15 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
     public void ClearAllGameDayActors()
     {
-        var birds = FindObjectsOfType<CycloneBird>();
+        var birds = FindObjectsByType<CycloneBird>(FindObjectsSortMode.None);
         foreach (var bird in birds)
             Destroy(bird.gameObject);
 
-        var carriers = FindObjectsOfType<BallCarrierBird>();
+        var carriers = FindObjectsByType<BallCarrierBird>(FindObjectsSortMode.None);
         foreach (var carrier in carriers)
             Destroy(carrier.gameObject);
 
-        var footballs = FindObjectsOfType<Football>();
+        var footballs = FindObjectsByType<Football>(FindObjectsSortMode.None);
         foreach (var football in footballs)
             Destroy(football.gameObject);
     }

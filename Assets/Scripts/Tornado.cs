@@ -55,7 +55,7 @@ public class Tornado : MonoBehaviour
         // Prevent duplicate *parent* tornados only
         if (isParentTornado)
         {
-            Tornado[] allTornados = FindObjectsOfType<Tornado>();
+            Tornado[] allTornados = FindObjectsByType<Tornado>(FindObjectsSortMode.None);
             foreach (var t in allTornados)
             {
                 if (t != this && t.isParentTornado)
@@ -183,7 +183,7 @@ public class Tornado : MonoBehaviour
         // Clean up spawned small tornados if this parent is destroyed
         if (isParentTornado)
         {
-            Tornado[] tornados = FindObjectsOfType<Tornado>();
+            Tornado[] tornados = FindObjectsByType<Tornado>(FindObjectsSortMode.None);
             foreach (var t in tornados)
             {
                 if (t != this && !t.isParentTornado)

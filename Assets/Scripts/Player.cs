@@ -166,7 +166,7 @@ public class Player : MonoBehaviour
 
             if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
             {
-                var gameDayMgr = FindObjectOfType<GameDayManager>();
+                var gameDayMgr = FindFirstObjectByType<GameDayManager>();
                 if (gameDayMgr != null)
                     gameDayMgr.StartDefenseRound();
             }
@@ -408,7 +408,7 @@ private void DieToGround()
         if (!wasAlreadyActive)
         {
             CreateMagnetVisual();
-            Spawner spawner = FindObjectOfType<Spawner>();
+            Spawner spawner = FindFirstObjectByType<Spawner>();
             if (spawner != null)
                 spawner.ActivateProbabilityBoost();
         }
@@ -448,7 +448,7 @@ private void DieToGround()
             if (cornMagnetDisplay != null)
                 cornMagnetDisplay.SetActive(false);
 
-            Spawner spawner = FindObjectOfType<Spawner>();
+            Spawner spawner = FindFirstObjectByType<Spawner>();
             if (spawner != null)
                 spawner.DeactivateProbabilityBoost();
         }
@@ -482,9 +482,9 @@ private void DieToGround()
     // How close in X we consider "the same x coordinate"
     const float xEpsilon = 0.05f;
 
-    CornKernel[] allCornKernels = FindObjectsOfType<CornKernel>();
+    CornKernel[] allCornKernels = FindObjectsByType<CornKernel>(FindObjectsSortMode.None);
 
-    foreach (CornKernel kernel in allCornKernels)
+        foreach (CornKernel kernel in allCornKernels)
     {
         float xDiff = Mathf.Abs(kernel.transform.position.x - transform.position.x);
 
