@@ -117,6 +117,10 @@ public class Player : MonoBehaviour
 
     private void Update()
     {
+        if (Time.timeScale == 0f || !PauseManager.GameIsActive)
+            return;
+
+
         bool flap =
             (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) ||
             (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) ||

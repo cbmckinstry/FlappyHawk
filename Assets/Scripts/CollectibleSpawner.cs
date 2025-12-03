@@ -18,6 +18,9 @@ public class CollectibleSpawner : MonoBehaviour
 
     private void Update()
     {
+        if (!PauseManager.GameIsActive)
+            return;
+
         if (!GameManager.IsGameActive()) return;
 
         timer += Time.deltaTime;

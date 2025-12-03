@@ -131,6 +131,9 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
     private void Update()
     {
+        if (!PauseManager.GameIsActive)
+            return;
+
         if (Time.timeScale <= 0f) return;
 
         if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
