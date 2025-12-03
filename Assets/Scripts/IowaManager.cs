@@ -1,10 +1,12 @@
-using System;
+﻿using System;
+using System.IO;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
+using System.Linq;
 
 public class IowaManager : MonoBehaviour
 {
@@ -16,16 +18,16 @@ public class IowaManager : MonoBehaviour
     public GameObject gameOver;
     public GameObject readyButton;
     public GameObject menuButton;
-    public Image difficultyImage;
-    public Sprite easySprite;
-    public Sprite normalSprite;
-    public Sprite hardSprite;
     public TMP_InputField playerNameInput;
 
     // UI
     [SerializeField] private TextMeshProUGUI scoreText;
-    [SerializeField] private TextMeshProUGUI helmetDurabilityText;
     [SerializeField] private TextMeshProUGUI playerHealthText;
+
+    [Header("Game Over UI")]
+    [SerializeField] private TextMeshProUGUI goCurrentScoreText;
+    [SerializeField] private TextMeshProUGUI goHighScoreText;
+    [SerializeField] private TextMeshProUGUI goModeDifficultyText;
 
     [Header("Tuning")]
     [SerializeField] private float scrollSpeed = 5f;
@@ -51,22 +53,25 @@ public class IowaManager : MonoBehaviour
 
     private void Awake()
     {
+
         Instance = this;
         Application.targetFrameRate = 60;
 
         gameOver.SetActive(false);
-        difficultyImage?.gameObject.SetActive(false);
 
         // Show these on load
-        readyButton?.SetActive(true);         
+        readyButton?.SetActive(true);
         playButton?.SetActive(true);
         menuButton?.SetActive(true);
         playerNameInput?.gameObject.SetActive(true);
 
-        // Using TextMeshPro fields you already have:
+        // Make sure UI labels are shown normally
         scoreText?.gameObject.SetActive(true);
-        helmetDurabilityText?.gameObject.SetActive(true);
         playerHealthText?.gameObject.SetActive(true);
+
+        // Hide player object at scene load
+        if (player != null)
+            player.gameObject.SetActive(false);
 
         Pause();
 
@@ -83,10 +88,8 @@ public class IowaManager : MonoBehaviour
     {
         if (player != null && player.enabled && Time.timeScale > 0f)
         {
-            // Timer
             roundElapsed += Time.unscaledDeltaTime;
 
-            // Jump counter
             bool jumpPressed =
                 (Keyboard.current?.spaceKey.wasPressedThisFrame ?? false) ||
                 (Mouse.current?.leftButton.wasPressedThisFrame ?? false) ||
@@ -111,24 +114,41 @@ public class IowaManager : MonoBehaviour
         playButton?.SetActive(false);
         menuButton?.SetActive(false);
         playerNameInput?.gameObject.SetActive(false);
-        difficultyImage?.gameObject.SetActive(false);
         gameOver?.SetActive(false);
 
         scoreText?.gameObject.SetActive(true);
-        helmetDurabilityText?.gameObject.SetActive(true);
         playerHealthText?.gameObject.SetActive(true);
 
-        if (playerNameInput != null)
-            playerNameInput.text = "";
 
         Time.timeScale = 1f;
+
+        ApplyDifficulty();
+
+        // Re-enable player object when gameplay starts
+        if (player != null)
+            player.gameObject.SetActive(true);
+
         player.enabled = true;
+
+        int maxHealth = currentDifficulty switch
+        {
+            GameManager.Difficulty.Normal => 4,
+            GameManager.Difficulty.Hard => 3,
+            _ => 5
+        };
+        player.SetMaxHealth(maxHealth);
+
+        Transform cornMagnetVisual = player.transform.Find("CornMagnetVisual");
+        if (cornMagnetVisual != null)
+            cornMagnetVisual.gameObject.SetActive(false);
 
         UpdateAllDisplays();
 
-        // wipe old run’s spawned objects
+        // wipe old run's spawned objects
         foreach (var obj in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
-            if (obj is Obstacle or Silo or Turbine or Balloon or CycloneBird or CornKernel or Helmet or WindBoost or Football or GoalPost or BallCarrierBird)
+            if (obj is Obstacle or Silo or Turbine or Balloon or CycloneBird
+                or CornKernel or Helmet or CornMagnet or WindBoost
+                or Football or GoalPost or BallCarrierBird)
                 Destroy(obj.gameObject);
 
         // reset Game Day if present
@@ -139,25 +159,33 @@ public class IowaManager : MonoBehaviour
             gdm.OnPlayerDeathReset();
         }
 
-
-
         FindFirstObjectByType<Spawner>()?.ResetSpawner();
-
-        ApplyDifficulty();
     }
 
     public void GameOver()
     {
+        if (!CustomSpawnSettings.IsCustomIowa)
+        {
         LogIowaRun();
+        }
+
+        if (player != null)
+            player.gameObject.SetActive(false);
+
+        if (goCurrentScoreText != null)
+            goCurrentScoreText.text = score.ToString();
+
+        if (goModeDifficultyText != null)
+            goModeDifficultyText.text = $"Iowa — {CurrentDifficulty}";
+
+        int highScore = LoadIowaHighScore(CurrentDifficulty.ToString());
+        if (goHighScoreText != null)
+            goHighScoreText.text = highScore.ToString();
 
         gameOver.SetActive(true);
         playButton.SetActive(true);
         menuButton.SetActive(true);
-
-        // Hide these on GameOver screen
         readyButton?.SetActive(false);
-        difficultyImage?.gameObject.SetActive(false);
-        playerNameInput?.gameObject.SetActive(false);
 
         Pause();
         SelectPlayButton();
@@ -181,7 +209,6 @@ public class IowaManager : MonoBehaviour
         scoreText.text = score.ToString();
     }
 
-    // bridge stub (Iowa never uses opponent score)
     public void IncreaseOpponentScore(int amount = 1) { }
 
     public void Pause()
@@ -194,48 +221,35 @@ public class IowaManager : MonoBehaviour
     {
         float spawnRate;
         Sprite currentSprite;
+        int maxHealth;
 
         switch (currentDifficulty)
         {
             case GameManager.Difficulty.Normal:
                 spawnRate = normalSpawnRate;
-                currentSprite = normalSprite;
+                maxHealth = 4;
                 break;
             case GameManager.Difficulty.Hard:
                 spawnRate = hardSpawnRate;
-                currentSprite = hardSprite;
+                maxHealth = 3;
                 break;
             default:
                 spawnRate = easySpawnRate;
-                currentSprite = easySprite;
+                maxHealth = 5;
                 break;
         }
 
         CurrentScrollSpeed = scrollSpeed;
         player.gravity = -9.8f;
         CurrentSpawnRate = spawnRate;
+        player.SetMaxHealth(maxHealth);
 
         OnScrollSpeedChanged?.Invoke(scrollSpeed);
         OnSpawnRateChanged?.Invoke(spawnRate);
-
-        if (difficultyImage != null)
-            difficultyImage.sprite = currentSprite;
     }
 
     public void RegisterObstacle() => obstaclesSpawned++;
     public void RegisterJump() => jumps++;
-
-    private void UpdateHelmetDurabilityDisplay()
-    {
-        if (player == null)
-            player = FindObjectOfType<Player>();
-
-        if (helmetDurabilityText == null)
-            helmetDurabilityText = GameObject.Find("HelmetNumber")?.GetComponent<TextMeshProUGUI>();
-
-        if (player != null && helmetDurabilityText != null)
-            helmetDurabilityText.text = player.GetHelmetDurability().ToString();
-    }
 
     private void UpdatePlayerHealthDisplay()
     {
@@ -251,7 +265,6 @@ public class IowaManager : MonoBehaviour
 
     private void UpdateAllDisplays()
     {
-        UpdateHelmetDurabilityDisplay();
         UpdatePlayerHealthDisplay();
     }
 
@@ -295,6 +308,7 @@ public class IowaManager : MonoBehaviour
 
     private void LogIowaRun()
     {
+        // Iowa version of run data
         RunLogData data = new RunLogData
         {
             playerName = GetFinalizedPlayerName(),
@@ -303,11 +317,10 @@ public class IowaManager : MonoBehaviour
             difficulty = currentDifficulty.ToString(),
 
             score = score,
-            playerScore = score,
+            playerScore = 0,
             enemyScore = 0,
 
             roundSeconds = roundElapsed,
-
             obstaclesSpawned = obstaclesSpawned,
             jumps = jumps,
             helmetsCollected = 0,
@@ -318,5 +331,47 @@ public class IowaManager : MonoBehaviour
         };
 
         RunDataLogger.AppendRun(data);
+    }
+
+    private int LoadIowaHighScore(string difficultyFilter)
+    {
+        string folder = RunDataLogger.GetLogFolder();
+        string filePath = Path.Combine(folder, "game_runs.csv");
+
+        if (!File.Exists(filePath))
+            return 0;
+
+        try
+        {
+            var lines = File.ReadAllLines(filePath).Skip(1); // skip header
+            int best = 0;
+
+            foreach (var line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                var parts = line.Split(',');
+                if (parts.Length < 5)
+                    continue;
+
+                string mode = parts[2].Trim().Trim('"');    // game_mode
+                string diff = parts[3].Trim().Trim('"');    // difficulty
+
+                if (mode != "Iowa") continue;
+                if (diff != difficultyFilter) continue;
+
+                if (!int.TryParse(parts[4], out int scoreValue))
+                    continue;
+
+                best = Mathf.Max(best, scoreValue);
+            }
+
+            return best;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 }

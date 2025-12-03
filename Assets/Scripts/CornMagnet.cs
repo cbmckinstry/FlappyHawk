@@ -43,7 +43,7 @@ public class CornMagnet : MonoBehaviour, ICollectible
 
     public void Collect(Player player)
     {
-        AudioManager.Instance?.PlayCornCollect();
+        AudioManager.Instance?.PlayMagnetCollect();
         player.ActivateCornMagnet(MAGNET_DURATION);
     }
 }

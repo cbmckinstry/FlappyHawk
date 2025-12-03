@@ -116,13 +116,11 @@ public class GameManager : MonoBehaviour
     public static void OnPlayerDamaged(int helmetDurability)
     {
         IowaInstance?.OnPlayerDamaged(helmetDurability);
-        GameDayInstance?.OnPlayerDamaged(helmetDurability);
     }
 
     public static void OnPlayerHealed(int helmetDurability)
     {
         IowaInstance?.OnPlayerHealed(helmetDurability);
-        GameDayInstance?.OnPlayerHealed(helmetDurability);
     }
 
     public static bool IsGameActive()

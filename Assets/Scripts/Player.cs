@@ -78,7 +78,7 @@ public class Player : MonoBehaviour
             screenBottom = bottomLeft.y - 1f;
             screenTop = topRight.y + 1f;
 
-            KNOCKBACK_DISTANCE = Mathf.Abs(bottomLeft.x) / 5f;
+            KNOCKBACK_DISTANCE = Mathf.Abs(screenLeft) / 5f;
             KNOCKBACK_DURATION = KNOCKBACK_DISTANCE / KNOCKBACK_SPEED;
             WindBoost.BOOST_DISTANCE = KNOCKBACK_DISTANCE;
         }
@@ -222,7 +222,7 @@ public class Player : MonoBehaviour
             if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
             {
                 GameManager.GameOver();
-                AudioManager.Instance?.PlayDie();
+                AudioManager.Instance?.PlayGrunt();
                 return;
             }
 
@@ -237,7 +237,7 @@ public class Player : MonoBehaviour
             if (playerHealth <= 0)
             {
                 GameManager.GameOver();
-                AudioManager.Instance?.PlayDie();
+                AudioManager.Instance?.PlayGameOver();
             }
             else
             {
@@ -248,6 +248,7 @@ public class Player : MonoBehaviour
 
     private void ApplyKnockback()
     {
+        AudioManager.Instance?.PlayTackle();
         isKnockedBack = true;
         knockbackVelocity = Vector3.left * KNOCKBACK_SPEED;
         Invoke(nameof(EndKnockback), KNOCKBACK_DURATION);
@@ -276,6 +277,12 @@ public class Player : MonoBehaviour
         ApplyHealthInvulnerability();
     }
 
+    public void SetMaxHealth(int newMaxHealth)
+    {
+        maxPlayerHealth = newMaxHealth;
+        playerHealth = Mathf.Min(playerHealth, maxPlayerHealth);
+    }
+
     public void GainHelmet(int amount)
     {
         helmetDurability = Mathf.Min(helmetDurability + amount, maxHelmetDurability);
@@ -292,7 +299,7 @@ public class Player : MonoBehaviour
 private void DieToGround()
 {
     Debug.Log("[Player] Ground hit — instant death.");
-    AudioManager.Instance?.PlayDie();
+    AudioManager.Instance?.PlaySplat();
     GameManager.GameOver();  // bypass helmet/health entirely
 }
 

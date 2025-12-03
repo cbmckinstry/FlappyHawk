@@ -9,9 +9,11 @@ public class MainMenu : MonoBehaviour
     public GameObject mainMenuPanel;
     public GameObject iowaMenuPanel;
     public GameObject gamedayMenuPanel;
+    public GameObject leaderboardPanel;
     public GameObject settingsMenuPanel;
     public GameObject howToPlayMenuPanel;
     public GameObject creditsMenuPanel;
+    public GameObject iowaCustomMenuPanel;
 
     private Button selectedButton;
     private Button[] allButtons;
@@ -105,6 +107,11 @@ public class MainMenu : MonoBehaviour
     public void ShowSettings() => SwitchPanel(mainMenuPanel, settingsMenuPanel);
     public void ShowHowToPlay() => SwitchPanel(mainMenuPanel, howToPlayMenuPanel);
     public void ShowCredits() => SwitchPanel(mainMenuPanel, creditsMenuPanel);
+
+    public void ShowIowaCustomMenu() => SwitchPanel(iowaMenuPanel, iowaCustomMenuPanel);
+    public void BackToIowaMenuFromCustom() => SwitchPanel(iowaCustomMenuPanel, iowaMenuPanel);
+
+    public void ShowLeaderboards() => SwitchPanel(mainMenuPanel, leaderboardPanel);
     public void BackToMain() => ResetToMain();
 
     private void SwitchPanel(GameObject from, GameObject to)
@@ -115,20 +122,45 @@ public class MainMenu : MonoBehaviour
     }
 
     private void ResetToMain()
-    {
-        PlayClick();
-        iowaMenuPanel.SetActive(false);
-        gamedayMenuPanel.SetActive(false);
-        settingsMenuPanel.SetActive(false);
-        howToPlayMenuPanel.SetActive(false);
-        creditsMenuPanel.SetActive(false);
-        mainMenuPanel.SetActive(true);
-    }
+{
+    PlayClick();
+    iowaMenuPanel.SetActive(false);
+    gamedayMenuPanel.SetActive(false);
+    settingsMenuPanel.SetActive(false);
+    howToPlayMenuPanel.SetActive(false);
+    creditsMenuPanel.SetActive(false);
+    leaderboardPanel.SetActive(false);
+
+    if (iowaCustomMenuPanel != null)
+        iowaCustomMenuPanel.SetActive(false);
+
+    mainMenuPanel.SetActive(true);
+}
+
 
     // ---------------- START BUTTONS ----------------
     public void StartEasy() => StartGame(GameManager.Difficulty.Easy, "IowaScene");
     public void StartNormal() => StartGame(GameManager.Difficulty.Normal, "IowaScene");
     public void StartHard() => StartGame(GameManager.Difficulty.Hard, "IowaScene");
+
+    public void StartIowaCustom()
+{
+    PlayClick();
+
+    // Clear selection
+    EventSystem.current?.SetSelectedGameObject(null);
+    selectedButton = null;
+
+    // Custom runs use whatever BaseDifficulty you want (Normal by default)
+    CustomSpawnSettings.IsCustomIowa = true;
+    CustomSpawnSettings.BaseDifficulty = GameManager.Difficulty.Normal;
+
+    // Also set StartDifficulty so IowaManager picks the right baseline
+    GameManager.StartDifficulty = CustomSpawnSettings.BaseDifficulty;
+
+    // Load Iowa scene
+    SceneManager.LoadScene("IowaScene");
+}
 
     public void StartCollege() => StartGame(GameManager.Difficulty.Easy, "GamedayScene", GameManager.GameDayDifficulty.College);
     public void StartPro() => StartGame(GameManager.Difficulty.Normal, "GamedayScene", GameManager.GameDayDifficulty.Pro);

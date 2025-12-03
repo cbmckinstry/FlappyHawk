@@ -93,10 +93,25 @@ private const float OFFENSE_TO_DEFENSE_DELAY = 0f;
 private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
 
-
-
     private void OnEnable()
     {
+        if (CustomSpawnSettings.IsCustomIowa)
+    {
+        obstacleSpawnChance = CustomSpawnSettings.obstacleSpawnChance;
+
+        balloonWeight     = CustomSpawnSettings.balloonWeight;
+        siloWeight        = CustomSpawnSettings.siloWeight;
+        turbineWeight     = CustomSpawnSettings.turbineWeight;
+        cycloneBirdWeight = CustomSpawnSettings.cycloneBirdWeight;
+        tornadoWeight     = CustomSpawnSettings.tornadoWeight;
+
+        cornKernelWeight  = CustomSpawnSettings.cornKernelWeight;
+        helmetWeight      = CustomSpawnSettings.helmetWeight;
+        windBoostWeight   = CustomSpawnSettings.windBoostWeight;
+        cornMagnetWeight  = CustomSpawnSettings.cornMagnetWeight;
+    }
+
+
         GameManager.OnSpawnRateChanged += HandleSpawnRateChanged;
 
         spawnRate = GameManager.CurrentSpawnRate;

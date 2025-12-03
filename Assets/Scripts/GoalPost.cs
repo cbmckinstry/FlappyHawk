@@ -55,12 +55,13 @@ public class GoalPost : MonoBehaviour
         Player player = other.GetComponent<Player>();
         Football football = other.GetComponent<Football>();
 
-        // Case 1: Player passes through with football = 7 points
+        // Case 1: Player passes through with football = 7 points (Hawkeye/Player scores)
         if (player != null)
         {
             Football carriedBall = FindFirstObjectByType<Football>();
             if (carriedBall != null && carriedBall.IsCarried())
             {
+                AudioManager.Instance?.PlayTouchdown();
                 GameManager.IncreaseScore(7);
                 Destroy(carriedBall.gameObject);
                 hasScored = true;
@@ -69,9 +70,10 @@ public class GoalPost : MonoBehaviour
             }
         }
 
-        // Case 2: Dropped football goes through = 3 points
+        // Case 2: Dropped football goes through = 3 points (Player scores)
         if (football != null && !football.IsCarried())
         {
+            AudioManager.Instance?.PlayFieldGoal();
             GameManager.IncreaseScore(3);
             Destroy(football.gameObject);
             hasScored = true;

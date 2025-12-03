@@ -140,6 +140,8 @@ public class BallCarrierBird : MonoBehaviour
 
     private void OnHitByPlayer()
     {
+        AudioManager.Instance?.PlayTackle();
+
         // Destroy all cyclone birds in the scene
         foreach (var bird in FindObjectsByType<CycloneBird>(FindObjectsSortMode.None))
             Destroy(bird.gameObject);

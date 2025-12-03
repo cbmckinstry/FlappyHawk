@@ -5,29 +5,20 @@ using UnityEngine;
 
 public static class RunDataLogger
 {
-    private const string FileName = "game_runs.csv";
+    private const string FullFileName = "game_runs.csv";
+    private const string LeaderboardFileName = "leaderboard.csv";
     private const string RunIdKey = "run_id_counter";
 
-    private static readonly string PreferredDesktopDir =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "FlappyHawk", "Logs");
+    private static readonly string LogsFolder = Path.Combine(Application.dataPath, "Logs");
+    private static readonly string FullFilePath = Path.Combine(LogsFolder, FullFileName);
+    private static readonly string LeaderboardFilePath = Path.Combine(LogsFolder, LeaderboardFileName);
 
-    private static string BestWritableDir
+    static RunDataLogger()
     {
-        get
-        {
-#if UNITY_STANDALONE || UNITY_EDITOR
-            if (TryEnsureWritable(PreferredDesktopDir))
-                return PreferredDesktopDir;
-#endif
-            var fallback = Application.persistentDataPath;
-            TryEnsureWritable(fallback);
-            return fallback;
-        }
+        if (!Directory.Exists(LogsFolder))
+            Directory.CreateDirectory(LogsFolder);
     }
 
-    private static string FilePath => Path.Combine(BestWritableDir, FileName);
-
-    // Auto-incrementing run ID
     public static int GetNextRunId()
     {
         int id = PlayerPrefs.GetInt(RunIdKey, 0) + 1;
@@ -36,16 +27,20 @@ public static class RunDataLogger
         return id;
     }
 
-    // ============================================
-    // MAIN ENTRY
-    // ============================================
     public static void AppendRun(RunLogData data)
+    {
+        WriteFullCSV(data);
+        WriteLeaderboardCSV(data);
+    }
+
+
+    private static void WriteFullCSV(RunLogData data)
     {
         try
         {
-            bool newFile = !File.Exists(FilePath);
+            bool newFile = !File.Exists(FullFilePath);
 
-            using (var sw = new StreamWriter(FilePath, append: true))
+            using (var sw = new StreamWriter(FullFilePath, append: true))
             {
                 if (newFile)
                 {
@@ -64,7 +59,7 @@ public static class RunDataLogger
                     data.score,
                     data.playerScore,
                     data.enemyScore,
-                    data.roundSeconds.ToString("0.###"),
+                    data.roundSeconds.ToString("0.###", CultureInfo.InvariantCulture),
                     data.obstaclesSpawned,
                     data.jumps,
                     data.helmetsCollected,
@@ -77,7 +72,7 @@ public static class RunDataLogger
             }
 
 #if UNITY_EDITOR
-            Debug.Log($"[RunDataLogger] Saved run → {FilePath}");
+            Debug.Log($"[RunDataLogger] Saved run → {FullFilePath}");
 #endif
         }
         catch (Exception ex)
@@ -86,9 +81,36 @@ public static class RunDataLogger
         }
     }
 
-    // ============================================
-    // HELPERS
-    // ============================================
+    private static void WriteLeaderboardCSV(RunLogData data)
+    {
+        try
+        {
+            bool newFile = !File.Exists(LeaderboardFilePath);
+
+            using (var sw = new StreamWriter(LeaderboardFilePath, append: true))
+            {
+                if (newFile)
+                    sw.WriteLine("name,score,mode,difficulty");
+
+                int leaderboardScore = data.gameMode.Contains("GameDay")
+                    ? data.playerScore - data.enemyScore
+                    : data.score;
+
+                sw.WriteLine(string.Join(",",
+                    Escape(data.playerName),
+                    leaderboardScore,
+                    Escape(data.gameMode),
+                    Escape(data.difficulty)
+                ));
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[RunDataLogger] Error writing leaderboard log: {ex}");
+        }
+    }
+
+
     private static bool TryEnsureWritable(string dir)
     {
         try
@@ -115,26 +137,28 @@ public static class RunDataLogger
             return $"\"{s.Replace("\"", "\"\"")}\"";
         return s;
     }
+
+    public static string GetLogFolder()
+    {
+        return LogsFolder;
+    }
 }
 
-// ============================================
-// UPDATED RUN DATA HOLDER
-// ============================================
+
 public class RunLogData
 {
     public int runId = RunDataLogger.GetNextRunId();
 
-    public string playerName;   
+    public string playerName;
 
-    public string gameMode;      
-    public string difficulty;    
+    public string gameMode;
+    public string difficulty;
 
-    public int score;
-    public int playerScore;
-    public int enemyScore;
+    public int score;          // Iowa mode only
+    public int playerScore;    // Gameday mode player points
+    public int enemyScore;     // Gameday opponent points
 
     public float roundSeconds;
-
     public int obstaclesSpawned;
     public int jumps;
     public int helmetsCollected;
