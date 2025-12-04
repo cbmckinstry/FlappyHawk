@@ -303,7 +303,11 @@ public class Player : MonoBehaviour
                 {
                     // OFFENSE
                     if (isCarrier)
+                    {
                         mp.GameOver();
+                        AudioManager.Instance?.PlayGrunt();
+                    }
+
                     else
                         Destroy(other.gameObject);
                 }

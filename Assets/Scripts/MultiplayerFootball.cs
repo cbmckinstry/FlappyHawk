@@ -125,6 +125,7 @@ public class MultiplayerFootball : MonoBehaviour
             else
             {
                 MP.OnBallDroppedScored(MP.GetBallCarrier()); // +3
+                AudioManager.Instance?.PlayFieldGoal();
             }
 
             Destroy(gameObject);

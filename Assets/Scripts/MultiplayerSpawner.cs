@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 
 public class MultiplayerSpawner : MonoBehaviour
@@ -15,19 +15,34 @@ public class MultiplayerSpawner : MonoBehaviour
     public float maxY = 2f;
 
     [Header("Defense Settings")]
+    [Tooltip("Latest time (seconds) by which the carrier MUST have spawned in defense.")]
     public float defenseCarrierDelay = 3f;
 
+    // Offense timers
     private float spawnTimer = 0f;
     private float goalPostTimer = 0f;
     private const float GOALPOST_RATE = 8f;
 
+    // Defense state
     private bool defenseCarrierSpawned = false;
     private float defenseTimer = 0f;
+
+    // NEW: continuous defense waves
+    private float defenseWaveTimer = 0f;
+    [SerializeField] private float defenseWaveIntervalMin = 0.45f;
+    [SerializeField] private float defenseWaveIntervalMax = 0.8f;
+    private float defenseWaveIntervalCurrent = 0.6f;
+
+    private int defenseWavesSpawned = 0;
+    private int defenseCarrierTargetWave = -1;   // which wave will carry the ball
 
     private MultiplayerManager mp => MultiplayerManager.Instance;
 
     private List<GameObject> spawnedObjects = new List<GameObject>();
 
+    // ===========================================================
+    // UPDATE
+    // ===========================================================
 
     private void Update()
     {
@@ -43,6 +58,7 @@ public class MultiplayerSpawner : MonoBehaviour
     // ===========================================================
     // ====================== OFFENSE ============================
     // ===========================================================
+
     private void UpdateOffenseSpawning()
     {
         spawnTimer += Time.deltaTime;
@@ -63,13 +79,14 @@ public class MultiplayerSpawner : MonoBehaviour
 
     private void SpawnRandomOffensePattern()
     {
-        int type = Random.Range(0, 3);
+        int type = Random.Range(0, 4);
 
         switch (type)
         {
-            case 0: SpawnCluster(3, 6, 0.45f); break;
-            case 1: SpawnDiagonal(3, 5, 0.35f); break;
-            case 2: SpawnLine(3, 6, 0.4f); break;
+            case 0: SpawnCluster(6, 12, 0.65f); break;
+            case 1: SpawnDiagonal(6, 10, 0.45f); break;
+            case 2: SpawnLine(6, 12, 0.5f); break;
+            case 3: SpawnChaosSpray(8, 16); break;  // chaos pattern
         }
     }
 
@@ -111,62 +128,180 @@ public class MultiplayerSpawner : MonoBehaviour
         }
     }
 
+    private void SpawnChaosSpray(int minCount, int maxCount)
+    {
+        int count = Random.Range(minCount, maxCount);
+
+        for (int i = 0; i < count; i++)
+        {
+            float offsetX = Random.Range(-0.8f, 1.3f);
+            float offsetY = Random.Range(minY, maxY);
+
+            SpawnBird(new Vector3(transform.position.x + offsetX, offsetY));
+        }
+    }
+
     // ===========================================================
     // ====================== DEFENSE ============================
     // ===========================================================
+
     private void UpdateDefenseSpawning()
     {
+        // continuous waves during defense
         defenseTimer += Time.deltaTime;
-        spawnTimer += Time.deltaTime;
+        defenseWaveTimer += Time.deltaTime;
 
-        if (!defenseCarrierSpawned)
+        // decide which wave will carry the ball (early/mid/late-ish)
+        if (defenseCarrierTargetWave == -1)
         {
-            if (spawnTimer >= spawnRate)
+            // Medium chaos: random between wave 2 and 6
+            defenseCarrierTargetWave = Random.Range(2, 7);
+        }
+
+        if (defenseWaveTimer >= defenseWaveIntervalCurrent)
+        {
+            defenseWaveTimer = 0f;
+            defenseWaveIntervalCurrent = Random.Range(defenseWaveIntervalMin, defenseWaveIntervalMax);
+
+            defenseWavesSpawned++;
+
+            bool shouldEmbedCarrier = false;
+
+            if (!defenseCarrierSpawned)
             {
-                spawnTimer = 0f;
-                SpawnDefenseCluster();
+                // Prefer wave-based decision
+                if (defenseWavesSpawned == defenseCarrierTargetWave)
+                {
+                    shouldEmbedCarrier = true;
+                }
+                else if (defenseTimer >= defenseCarrierDelay)
+                {
+                    // Failsafe: if we're past delay and still no carrier, embed now
+                    shouldEmbedCarrier = true;
+                }
             }
 
-            if (defenseTimer >= defenseCarrierDelay)
-            {
-                SpawnHiddenCarrierCluster();
-                defenseCarrierSpawned = true;
-            }
+            SpawnDefenseWave(shouldEmbedCarrier);
         }
     }
 
-    private void SpawnDefenseCluster()
+    private void SpawnDefenseWave(bool includeCarrier)
     {
-        SpawnCluster(5, 9, 0.6f);
+        if (cycloneBirdPrefab == null)
+            return;
+
+        // Pick a pattern like offense, but with slightly boosted counts
+        int pattern = Random.Range(0, 4);
+
+        List<Vector3> positions;
+
+        switch (pattern)
+        {
+            case 0: // cluster
+                positions = GenerateClusterPositions(8, 14, 0.7f);
+                break;
+
+            case 1: // diagonal
+                positions = GenerateDiagonalPositions(8, 13, 0.5f);
+                break;
+
+            case 2: // line
+                positions = GenerateLinePositions(10, 16, 0.55f);
+                break;
+
+            default: // chaos spray
+                positions = GenerateChaosPositions(10, 18);
+                break;
+        }
+
+        int carrierIndex = -1;
+
+        if (includeCarrier && enemyBallCarrierPrefab != null && positions.Count > 0)
+        {
+            carrierIndex = Random.Range(0, positions.Count);
+
+            GameObject carrier = Instantiate(enemyBallCarrierPrefab, positions[carrierIndex], Quaternion.identity);
+            spawnedObjects.Add(carrier);
+            defenseCarrierSpawned = true;
+        }
+
+        // Spawn birds at all other positions (skip the carrier index so it's not visually doubled)
+        for (int i = 0; i < positions.Count; i++)
+        {
+            if (i == carrierIndex)
+                continue;
+
+            SpawnBird(positions[i]);
+        }
     }
 
-    private void SpawnHiddenCarrierCluster()
+    // Defense pattern generators (return positions instead of spawning immediately)
+    private List<Vector3> GenerateClusterPositions(int minCount, int maxCount, float spread)
     {
+        List<Vector3> positions = new List<Vector3>();
+        int count = Random.Range(minCount, maxCount);
         float midY = Random.Range(minY, maxY);
 
-        // fake clusters around it
-        int fakeClusters = Random.Range(1, 3);
-        for (int i = 0; i < fakeClusters; i++)
+        for (int i = 0; i < count; i++)
         {
-            SpawnCluster(3, 6, 0.45f);
+            float y = midY + Random.Range(-spread, spread);
+            positions.Add(new Vector3(transform.position.x, y));
         }
 
-        // spawn the real carrier buried in birds
-        Vector3 carrierPos = new Vector3(transform.position.x, midY);
-        GameObject real = Instantiate(enemyBallCarrierPrefab, carrierPos, Quaternion.identity);
-        spawnedObjects.Add(real);
+        return positions;
+    }
 
-        // spawn birds around the carrier
-        for (int i = 0; i < Random.Range(4, 7); i++)
+    private List<Vector3> GenerateDiagonalPositions(int minCount, int maxCount, float stepY)
+    {
+        List<Vector3> positions = new List<Vector3>();
+        int count = Random.Range(minCount, maxCount);
+        float startY = Random.Range(minY, maxY);
+
+        float direction = Random.value < 0.5f ? 1f : -1f;
+
+        for (int i = 0; i < count; i++)
         {
-            float y = midY + Random.Range(-0.6f, 0.6f);
-            SpawnBird(new Vector3(transform.position.x, y));
+            float y = startY + (i * stepY * direction);
+            positions.Add(new Vector3(transform.position.x, y));
         }
+
+        return positions;
+    }
+
+    private List<Vector3> GenerateLinePositions(int minCount, int maxCount, float spacing)
+    {
+        List<Vector3> positions = new List<Vector3>();
+        int count = Random.Range(minCount, maxCount);
+        float startY = Random.Range(minY, maxY);
+
+        for (int i = 0; i < count; i++)
+        {
+            float y = startY + (i * spacing);
+            positions.Add(new Vector3(transform.position.x, y));
+        }
+
+        return positions;
+    }
+
+    private List<Vector3> GenerateChaosPositions(int minCount, int maxCount)
+    {
+        List<Vector3> positions = new List<Vector3>();
+        int count = Random.Range(minCount, maxCount);
+
+        for (int i = 0; i < count; i++)
+        {
+            float offsetX = Random.Range(-0.8f, 1.3f);
+            float offsetY = Random.Range(minY, maxY);
+            positions.Add(new Vector3(transform.position.x + offsetX, offsetY));
+        }
+
+        return positions;
     }
 
     // ===========================================================
-    // HELPERS
+    // ====================== HELPERS ============================
     // ===========================================================
+
     private void SpawnBird(Vector3 pos)
     {
         GameObject b = Instantiate(cycloneBirdPrefab, pos, Quaternion.identity);
@@ -175,9 +310,17 @@ public class MultiplayerSpawner : MonoBehaviour
 
     private void SpawnGoalPost()
     {
-        GameObject post = Instantiate(goalPostPrefab,
-            new Vector3(transform.position.x, 0.5f), Quaternion.identity);
+        if (goalPostPrefab == null || Camera.main == null)
+            return;
 
+        // spawn OFFSCREEN RIGHT like SP mode
+        float x = Camera.main.ScreenToWorldPoint(
+            new Vector3(Camera.main.pixelWidth, 0, 0)
+        ).x + 1.2f;
+
+        Vector3 spawnPos = new Vector3(x, 0.5f, 0f);
+
+        GameObject post = Instantiate(goalPostPrefab, spawnPos, Quaternion.identity);
         spawnedObjects.Add(post);
     }
 
@@ -188,17 +331,26 @@ public class MultiplayerSpawner : MonoBehaviour
             Quaternion.identity);
 
         ball.GetComponent<MultiplayerFootball>()?.SetCarrier(carrier);
-
         spawnedObjects.Add(ball);
     }
 
     public void ResetSpawner()
     {
-        spawnTimer = goalPostTimer = defenseTimer = 0f;
+        // Offense
+        spawnTimer = 0f;
+        goalPostTimer = 0f;
+
+        // Defense
+        defenseTimer = 0f;
+        defenseWaveTimer = 0f;
+        defenseWaveIntervalCurrent = Random.Range(defenseWaveIntervalMin, defenseWaveIntervalMax);
+        defenseWavesSpawned = 0;
         defenseCarrierSpawned = false;
+        defenseCarrierTargetWave = -1;
 
         foreach (var o in spawnedObjects)
-            if (o != null) Destroy(o);
+            if (o != null)
+                Destroy(o);
 
         spawnedObjects.Clear();
     }
