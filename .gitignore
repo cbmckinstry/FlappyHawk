@@ -4,10 +4,11 @@
 [Oo]bj/
 [Bb]uild/
 [Bb]uilds/
-!Builds/**
+!Builds/**        # <-- UNIGNORE THIS SPECIFIC FOLDER
 [Ll]ogs/
 UserSettings/
 MemoryCaptures/
+
 
 # Visual Studio / Rider
 .vs/
