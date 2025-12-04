@@ -48,29 +48,26 @@ public class MainMenu : MonoBehaviour
         if (!gameObject.activeInHierarchy)
             return;
 
-        if (ControllerInputManager.Instance == null || !ControllerInputManager.Instance.IsControllerConnected())
+        var c = ControllerInputManager.Instance;
+        if (c == null || !c.HasAnyControllers())
             return;
 
+        // Ensure selected button is valid
         if (!IsButtonValid(selectedButton))
         {
             SelectFirstButton();
             return;
         }
 
-        Vector2 dpadInput = ControllerInputManager.Instance.GetMenuInputDPad();
-        Vector2 stickInput = ControllerInputManager.Instance.GetMenuInputLeftStick();
-        Vector2 input = dpadInput + stickInput;
+        // --- MENU NAVIGATION INPUT ---
+        float vertical = c.GetMenuVertical();
+        bool submit = c.GetMenuSubmit();
 
-        if (input != Vector2.zero)
-        {
-            HandleMenuNavigation(input);
-        }
+        if (vertical != 0)
+            HandleMenuNavigation(vertical);
 
-        if (Input.GetButtonDown("Submit"))
-        {
-            if (selectedButton != null && IsButtonValid(selectedButton))
-                selectedButton.onClick.Invoke();
-        }
+        if (submit && selectedButton != null)
+            selectedButton.onClick.Invoke();
     }
 
     private bool IsButtonValid(Button button)
@@ -78,26 +75,22 @@ public class MainMenu : MonoBehaviour
         return button != null && button.gameObject != null && button.gameObject.scene.isLoaded;
     }
 
-    private void HandleMenuNavigation(Vector2 direction)
+    private void HandleMenuNavigation(float vertical)
     {
         if (!IsButtonValid(selectedButton))
             return;
 
         Selectable nextSelectable = null;
 
-        if (direction.y > 0)
-            nextSelectable = selectedButton?.FindSelectableOnUp();
-        else if (direction.y < 0)
-            nextSelectable = selectedButton?.FindSelectableOnDown();
-        else if (direction.x > 0)
-            nextSelectable = selectedButton?.FindSelectableOnRight();
-        else if (direction.x < 0)
-            nextSelectable = selectedButton?.FindSelectableOnLeft();
+        if (vertical > 0)
+            nextSelectable = selectedButton.FindSelectableOnUp();
+        else if (vertical < 0)
+            nextSelectable = selectedButton.FindSelectableOnDown();
 
-        if (nextSelectable != null && nextSelectable is Button button && IsButtonValid(button))
+        if (nextSelectable != null && nextSelectable is Button nextButton && IsButtonValid(nextButton))
         {
-            selectedButton = button;
-            EventSystem.current.SetSelectedGameObject(button.gameObject);
+            selectedButton = nextButton;
+            EventSystem.current.SetSelectedGameObject(nextButton.gameObject);
         }
     }
 

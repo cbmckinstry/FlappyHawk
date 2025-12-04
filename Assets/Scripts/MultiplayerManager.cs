@@ -56,6 +56,7 @@ public class MultiplayerManager : MonoBehaviour
 
     private void Start()
     {
+        ControllerInputManager.Instance.RecheckControllers();
         SelectPlayButton();
         ResetScores();
         SetInitialRoles();

@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using System.Collections;
 
 public class Player : MonoBehaviour
@@ -9,10 +10,11 @@ public class Player : MonoBehaviour
     // ===========================
     public enum PlayerID { Player1, Player2 }
     public PlayerID playerID;
-    public bool isMultiplayer = false;
+    public bool isMultiplayer = false;   // will be overridden automatically by scene
 
     // ===========================
-
+    // SHARED FIELDS
+    // ===========================
     private Vector3 direction;
     public float gravity = -9.8f;
     public float strength = 1f;
@@ -55,6 +57,9 @@ public class Player : MonoBehaviour
     private bool isMagnetActive = false;
     private const float MAGNET_FADE_START_TIME = 10f;
 
+    // ============================================================
+    //  ANIMATION
+    // ============================================================
     private void AnimateSprite()
     {
         spriteIndex++;
@@ -63,9 +68,18 @@ public class Player : MonoBehaviour
         spriteRenderer.sprite = flyingSprites[spriteIndex];
     }
 
+    // ============================================================
+    //  AWAKE
+    // ============================================================
     private void Awake()
     {
+        // AUTO-DETECT MULTIPLAYER BY SCENE
+        string sceneName = SceneManager.GetActiveScene().name;
+        isMultiplayer = (sceneName == "MultiplayerScene");
+
         spriteRenderer = GetComponent<SpriteRenderer>();
+        originalColor = spriteRenderer != null ? spriteRenderer.color : Color.white;
+
         helmetDisplay = transform.Find("HelmetDisplay")?.gameObject;
         if (helmetDisplay != null)
             helmetDisplay.SetActive(false);
@@ -99,52 +113,89 @@ public class Player : MonoBehaviour
         InvokeRepeating(nameof(AnimateSprite), animationSpeed, animationSpeed);
     }
 
+    // ============================================================
+    //  ONENABLE
+    // ============================================================
     private void OnEnable()
     {
         direction = Vector3.zero;
-        playerHealth = maxPlayerHealth;
         helmetDurability = 0;
         hasHelmet = false;
+        hasLeftScreen = false;
+        isInvulnerable = false;
+        isKnockedBack = false;
+        boostVelocityX = 0f;
+        boostTimeRemaining = 0f;
 
+        if (helmetDisplay != null)
+            helmetDisplay.SetActive(false);
+
+        if (cornMagnetDisplay != null)
+        {
+            cornMagnetDisplay.SetActive(false);
+            if (magnetSpriteRenderer != null)
+            {
+                var c = magnetSpriteRenderer.color;
+                c.a = 1f;
+                magnetSpriteRenderer.color = c;
+            }
+        }
+
+        // SINGLE-PLAYER SETUP
         if (!isMultiplayer)
         {
-            Vector3 pos = transform.position;
-            pos.x = 0f;
-            pos.y = 0f;
-            transform.position = pos;
+            // Reset position to center
+            Vector3 position = transform.position;
+            position.x = 0f;
+            position.y = 0f;
+            transform.position = position;
+
+            // Health rules from your original single-player
+            if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
+                maxPlayerHealth = 1;
+            else
+                maxPlayerHealth = 5;
+
+            playerHealth = maxPlayerHealth;
+            magnetDurationRemaining = 0f;
+            magnetTotalDuration = 0f;
+            isMagnetActive = false;
+        }
+        else
+        {
+            // MULTIPLAYER: health isn't really used; MP logic handles deaths via MultiplayerManager
+            // Still keep something sane
+            maxPlayerHealth = 1;
+            playerHealth = 1;
         }
     }
 
+    // ============================================================
+    //  UPDATE
+    // ============================================================
     private void Update()
     {
         if (Time.timeScale == 0f || !PauseManager.GameIsActive)
             return;
 
         bool flap = false;
+        bool drop = false;
 
         // ===========================================
         // MULTIPLAYER INPUT
         // ===========================================
         if (isMultiplayer)
         {
-            if (playerID == PlayerID.Player1)
-                flap = Keyboard.current?.wKey.wasPressedThisFrame ?? false;
+            var input = ControllerInputManager.Instance;
 
-            if (playerID == PlayerID.Player2)
-                flap = Keyboard.current?.upArrowKey.wasPressedThisFrame ?? false;
-
-            // BALL DROP (S / DownArrow)
-            bool drop = false;
-
-            if (playerID == PlayerID.Player1)
-                drop = Keyboard.current?.sKey.wasPressedThisFrame ?? false;
-
-            if (playerID == PlayerID.Player2)
-                drop = Keyboard.current?.downArrowKey.wasPressedThisFrame ?? false;
+            // Controller inputs ONLY
+            flap = input.GetFlap(playerID);
+            drop = input.GetDrop(playerID);
 
             if (drop)
                 MultiplayerManager.Instance?.HandleFootballDrop(this);
         }
+
         // ===========================================
         // SINGLE PLAYER INPUT
         // ===========================================
@@ -187,6 +238,42 @@ public class Player : MonoBehaviour
             else
                 boostVelocityX = 0f;
         }
+
+        // SINGLE-PLAYER-ONLY LOGIC: magnet + off-screen defense trigger
+        if (!isMultiplayer)
+        {
+            UpdateCornMagnet();
+            CheckOffScreenAndTriggerDefense();
+        }
+    }
+
+    // ============================================================
+    //  SINGLE-PLAYER OFF-SCREEN → DEFENSE (GAMEDAY)
+    // ============================================================
+    private void CheckOffScreenAndTriggerDefense()
+    {
+        bool isOffScreen =
+            (transform.position.x < screenLeft ||
+             transform.position.x > screenRight ||
+             transform.position.y < screenBottom ||
+             transform.position.y > screenTop);
+
+        if (isOffScreen && !hasLeftScreen)
+        {
+            hasLeftScreen = true;
+            Debug.Log($"[Player] Ball went off-screen at position: {transform.position}");
+
+            if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
+            {
+                var gameDayMgr = FindObjectOfType<GameDayManager>();
+                if (gameDayMgr != null)
+                    gameDayMgr.StartDefenseRound();
+            }
+        }
+        else if (!isOffScreen)
+        {
+            hasLeftScreen = false;
+        }
     }
 
     // ============================================================
@@ -197,13 +284,13 @@ public class Player : MonoBehaviour
         Debug.Log($"[Player] Collided with {other.gameObject.name} ({other.tag})");
 
         // ========================
-        // MULTIPLAYER COLLISION
+        // MULTIPLAYER COLLISIONS
         // ========================
         if (isMultiplayer)
         {
             var mp = MultiplayerManager.Instance;
 
-            // Ignore special defense ball carrier bird
+            // Ignore the special defense ball carrier bird – that script resolves defense
             if (other.GetComponent<MultiplayerBallCarrierBird>() != null)
                 return;
 
@@ -222,19 +309,21 @@ public class Player : MonoBehaviour
                 }
                 else
                 {
-                    // DEFENSE → both players destroy birds
+                    // DEFENSE – both players can destroy birds
                     Destroy(other.gameObject);
                 }
 
                 return;
             }
 
+            // Ground = instant game over for team
             if (other.CompareTag("Ground"))
             {
                 mp.GameOver();
                 return;
             }
 
+            // Scoring (safety guard – normal scoring already done via football/goalpost)
             if (other.CompareTag("Scoring"))
             {
                 mp.OnPlayerEnteredScoring(this);
@@ -244,25 +333,29 @@ public class Player : MonoBehaviour
             return;
         }
 
-
         // ========================
-        // SINGLE PLAYER COLLISION
+        // SINGLE-PLAYER COLLISIONS
         // ========================
-        if (other.CompareTag("Obstacle"))
+        if (other.gameObject.CompareTag("Obstacle"))
+        {
             TakeDamage();
-
-        else if (other.CompareTag("Ground"))
+        }
+        else if (other.gameObject.CompareTag("Ground"))
+        {
             DieToGround();
-
-        else if (other.CompareTag("Scoring"))
+        }
+        else if (other.gameObject.CompareTag("Scoring"))
+        {
             GameManager.IncreaseScore();
-
-        else if (other.CompareTag("Collectible"))
+        }
+        else if (other.gameObject.CompareTag("Collectible"))
+        {
             HandleCollectible(other.gameObject);
+        }
     }
 
     // ============================================================
-    //  HELMET FOR MULTIPLAYER
+    //  MULTIPLAYER HELMET
     // ============================================================
     public void SetMultiplayerHelmet(bool enabled)
     {
@@ -280,55 +373,85 @@ public class Player : MonoBehaviour
     }
 
     // ============================================================
-    //  REMAINING SINGLE PLAYER CODE (unchanged)
+    //  SINGLE-PLAYER DAMAGE / HEALTH
     // ============================================================
-
     private void TakeDamage()
     {
-        if (isInvulnerable) return;
+        if (isInvulnerable)
+            return;
 
         if (helmetDurability > 0)
         {
             helmetDurability--;
+            GameManager.OnPlayerDamaged(helmetDurability);
+
             if (helmetDurability == 0)
-                helmetDisplay?.SetActive(false);
+            {
+                hasHelmet = false;
+                if (helmetDisplay != null)
+                    helmetDisplay.SetActive(false);
+            }
             ApplyDamageInvulnerability();
         }
         else
         {
-            GameManager.GameOver();
+            // GameDay: straight up game over
+            if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
+            {
+                GameManager.GameOver();
+                AudioManager.Instance?.PlayGrunt();
+                return;
+            }
+
+            // Iowa: knockback instead of instant death
+            if (GameManager.CurrentGameMode == GameManager.GameMode.Iowa)
+            {
+                ApplyKnockback();
+            }
+
+            playerHealth--;
+            GameManager.OnPlayerDamaged(helmetDurability);
+
+            if (playerHealth <= 0)
+            {
+                GameManager.GameOver();
+                AudioManager.Instance?.PlayGameOver();
+            }
+            else
+            {
+                ApplyDamageInvulnerability();
+            }
         }
     }
 
-    private void DieToGround()
+    private void ApplyKnockback()
     {
-        Debug.Log("[Player] Hit ground");
-        GameManager.GameOver();
+        AudioManager.Instance?.PlayTackle();
+        isKnockedBack = true;
+        knockbackVelocity = Vector3.left * KNOCKBACK_SPEED;
+        Invoke(nameof(EndKnockback), KNOCKBACK_DURATION);
     }
 
-    private void ApplyDamageInvulnerability()
+    private void EndKnockback()
     {
-        if (colorAnimationCoroutine != null)
-            StopCoroutine(colorAnimationCoroutine);
-
-        isInvulnerable = true;
-        colorAnimationCoroutine = StartCoroutine(AnimateColorGradient(Color.black, INVULNERABILITY_DURATION));
+        isKnockedBack = false;
+        knockbackVelocity = Vector3.zero;
     }
 
-    // ---------------- COLLECTIBLES ----------------
     private void HandleCollectible(GameObject collectible)
     {
         ICollectible col = collectible.GetComponent<ICollectible>();
         if (col != null)
+        {
             col.Collect(this);
-
-        Destroy(collectible);
+            Destroy(collectible);
+        }
     }
 
-    // ---------------- HEALTH METHODS ----------------
     public void GainHealth(int amount)
     {
         playerHealth = Mathf.Min(playerHealth + amount, maxPlayerHealth);
+        GameManager.OnPlayerHealed(playerHealth);
         ApplyHealthInvulnerability();
     }
 
@@ -338,93 +461,65 @@ public class Player : MonoBehaviour
         playerHealth = Mathf.Min(playerHealth, maxPlayerHealth);
     }
 
-    public int GetHealth() => playerHealth;
-    public int GetMaxHealth() => maxPlayerHealth;
-
-    // ---------------- HELMET METHODS ----------------
     public void GainHelmet(int amount)
     {
         helmetDurability = Mathf.Min(helmetDurability + amount, maxHelmetDurability);
-
         if (helmetDurability > 0)
         {
             hasHelmet = true;
-            helmetDisplay?.SetActive(true);
+            if (helmetDisplay != null)
+                helmetDisplay.SetActive(true);
         }
+        GameManager.OnPlayerHealed(helmetDurability);
     }
 
-    public int GetHelmetDurability() => helmetDurability;
-    public int GetMaxHelmetDurability() => maxHelmetDurability;
+    private void DieToGround()
+    {
+        Debug.Log("[Player] Ground hit — instant death.");
+        AudioManager.Instance?.PlaySplat();
+        GameManager.GameOver();
+    }
 
-    // ---------------- HORIZONTAL BOOST ----------------
+    // ============================================================
+    //  BOOSTS
+    // ============================================================
     public void ApplyHorizontalBoost(float distance, float speed)
     {
         boostVelocityX = speed;
-        boostTimeRemaining = distance / speed;
+        boostTimeRemaining += distance / speed;
         ApplyBoostInvulnerability();
     }
 
-    // ---------------- CORN MAGNET ----------------
-    public void ActivateCornMagnet(float duration)
+    // ============================================================
+    //  INVULNERABILITY / COLOR EFFECTS
+    // ============================================================
+    private void ApplyDamageInvulnerability()
     {
-        magnetDurationRemaining += duration;
-        magnetTotalDuration = magnetDurationRemaining;
+        if (colorAnimationCoroutine != null)
+            StopCoroutine(colorAnimationCoroutine);
 
-        bool wasActive = isMagnetActive;
-        isMagnetActive = true;
-
-        if (!wasActive)
-        {
-            cornMagnetDisplay?.SetActive(true);
-            Spawner s = FindObjectOfType<Spawner>();
-            s?.ActivateProbabilityBoost();
-        }
-        else if (magnetSpriteRenderer != null)
-        {
-            Color c = magnetSpriteRenderer.color;
-            c.a = 1f;
-            magnetSpriteRenderer.color = c;
-        }
+        isInvulnerable = true;
+        colorAnimationCoroutine = StartCoroutine(AnimateColorGradient(Color.black, INVULNERABILITY_DURATION));
     }
 
-    private void UpdateCornMagnet()
+    private void ApplyBoostInvulnerability()
     {
-        if (!isMagnetActive) return;
+        if (colorAnimationCoroutine != null)
+            StopCoroutine(colorAnimationCoroutine);
 
-        magnetDurationRemaining -= Time.deltaTime;
-
-        if (magnetDurationRemaining <= 0f)
-        {
-            isMagnetActive = false;
-            cornMagnetDisplay?.SetActive(false);
-
-            Spawner s = FindObjectOfType<Spawner>();
-            s?.DeactivateProbabilityBoost();
-            return;
-        }
-
-        AutoCollectCornKernels();
+        isInvulnerable = true;
+        colorAnimationCoroutine = StartCoroutine(AnimateRainbowCycle(INVULNERABILITY_DURATION));
     }
 
-    private void AutoCollectCornKernels()
+    private void ApplyHealthInvulnerability()
     {
-        const float xEpsilon = 0.05f;
-        CornKernel[] kernels = FindObjectsOfType<CornKernel>();
+        if (colorAnimationCoroutine != null)
+            StopCoroutine(colorAnimationCoroutine);
 
-        foreach (var k in kernels)
-        {
-            float dx = Mathf.Abs(k.transform.position.x - transform.position.x);
-            if (dx <= xEpsilon)
-            {
-                k.Collect(this);
-                Destroy(k.gameObject);
-            }
-        }
+        isInvulnerable = true;
+        colorAnimationCoroutine = StartCoroutine(AnimateRainbowCycle(INVULNERABILITY_DURATION));
     }
 
-    public bool IsMagnetActive() => isMagnetActive;
-
-    // ---------------- INVULNERABILITY / COLOR EFFECTS ----------------
     private IEnumerator AnimateColorGradient(Color targetColor, float duration)
     {
         float elapsed = 0f;
@@ -433,7 +528,6 @@ public class Player : MonoBehaviour
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-
             float t = elapsed / half;
 
             if (t <= 1f)
@@ -481,23 +575,93 @@ public class Player : MonoBehaviour
         isInvulnerable = false;
     }
 
-    private void ApplyBoostInvulnerability()
+    // ============================================================
+    //  CORN MAGNET (SINGLE-PLAYER)
+    // ============================================================
+    public void ActivateCornMagnet(float duration)
     {
-        if (colorAnimationCoroutine != null)
-            StopCoroutine(colorAnimationCoroutine);
+        bool wasAlreadyActive = isMagnetActive;
 
-        isInvulnerable = true;
-        colorAnimationCoroutine = StartCoroutine(AnimateRainbowCycle(INVULNERABILITY_DURATION));
+        magnetDurationRemaining += duration;
+        magnetTotalDuration = magnetDurationRemaining;
+        isMagnetActive = true;
+
+        if (!wasAlreadyActive)
+        {
+            CreateMagnetVisual();
+            Spawner spawner = FindObjectOfType<Spawner>();
+            if (spawner != null)
+                spawner.ActivateProbabilityBoost();
+        }
+        else if (magnetSpriteRenderer != null)
+        {
+            Color magnetColor = magnetSpriteRenderer.color;
+            magnetColor.a = 1f;
+            magnetSpriteRenderer.color = magnetColor;
+        }
     }
 
-
-    private void ApplyHealthInvulnerability()
+    private void CreateMagnetVisual()
     {
-        if (colorAnimationCoroutine != null)
-            StopCoroutine(colorAnimationCoroutine);
+        if (cornMagnetDisplay == null)
+            return;
 
-        isInvulnerable = true;
-        colorAnimationCoroutine = StartCoroutine(AnimateRainbowCycle(INVULNERABILITY_DURATION));
+        cornMagnetDisplay.SetActive(true);
+
+        if (magnetSpriteRenderer != null)
+        {
+            Color magnetColor = magnetSpriteRenderer.color;
+            magnetColor.a = 1f;
+            magnetSpriteRenderer.color = magnetColor;
+        }
     }
 
+    private void UpdateCornMagnet()
+    {
+        if (!isMagnetActive)
+            return;
+
+        magnetDurationRemaining -= Time.deltaTime;
+
+        if (magnetDurationRemaining <= 0f)
+        {
+            isMagnetActive = false;
+            if (cornMagnetDisplay != null)
+                cornMagnetDisplay.SetActive(false);
+
+            Spawner spawner = FindObjectOfType<Spawner>();
+            if (spawner != null)
+                spawner.DeactivateProbabilityBoost();
+        }
+        else
+        {
+            // Original “any kernel at same X” auto-collect behavior
+            AutoCollectCornKernels();
+        }
+    }
+
+    private void AutoCollectCornKernels()
+    {
+        const float xEpsilon = 0.05f;
+
+        CornKernel[] allCornKernels = FindObjectsOfType<CornKernel>();
+
+        foreach (CornKernel kernel in allCornKernels)
+        {
+            float xDiff = Mathf.Abs(kernel.transform.position.x - transform.position.x);
+            if (xDiff <= xEpsilon)
+            {
+                kernel.Collect(this);
+                Destroy(kernel.gameObject);
+            }
+        }
+    }
+
+    public bool IsMagnetActive() => isMagnetActive;
+
+    // Public getters (used elsewhere)
+    public int GetHealth() => playerHealth;
+    public int GetMaxHealth() => maxPlayerHealth;
+    public int GetHelmetDurability() => helmetDurability;
+    public int GetMaxHelmetDurability() => maxHelmetDurability;
 }
