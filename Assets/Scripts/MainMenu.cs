@@ -48,29 +48,26 @@ public class MainMenu : MonoBehaviour
         if (!gameObject.activeInHierarchy)
             return;
 
-        if (ControllerInputManager.Instance == null || !ControllerInputManager.Instance.IsControllerConnected())
+        var c = ControllerInputManager.Instance;
+        if (c == null || !c.HasAnyControllers())
             return;
 
+        // Ensure selected button is valid
         if (!IsButtonValid(selectedButton))
         {
             SelectFirstButton();
             return;
         }
 
-        Vector2 dpadInput = ControllerInputManager.Instance.GetMenuInputDPad();
-        Vector2 stickInput = ControllerInputManager.Instance.GetMenuInputLeftStick();
-        Vector2 input = dpadInput + stickInput;
+        // --- MENU NAVIGATION INPUT ---
+        float vertical = c.GetMenuVertical();
+        bool submit = c.GetMenuSubmit();
 
-        if (input != Vector2.zero)
-        {
-            HandleMenuNavigation(input);
-        }
+        if (vertical != 0)
+            HandleMenuNavigation(vertical);
 
-        if (Input.GetButtonDown("Submit"))
-        {
-            if (selectedButton != null && IsButtonValid(selectedButton))
-                selectedButton.onClick.Invoke();
-        }
+        if (submit && selectedButton != null)
+            selectedButton.onClick.Invoke();
     }
 
     private bool IsButtonValid(Button button)
@@ -78,26 +75,22 @@ public class MainMenu : MonoBehaviour
         return button != null && button.gameObject != null && button.gameObject.scene.isLoaded;
     }
 
-    private void HandleMenuNavigation(Vector2 direction)
+    private void HandleMenuNavigation(float vertical)
     {
         if (!IsButtonValid(selectedButton))
             return;
 
         Selectable nextSelectable = null;
 
-        if (direction.y > 0)
-            nextSelectable = selectedButton?.FindSelectableOnUp();
-        else if (direction.y < 0)
-            nextSelectable = selectedButton?.FindSelectableOnDown();
-        else if (direction.x > 0)
-            nextSelectable = selectedButton?.FindSelectableOnRight();
-        else if (direction.x < 0)
-            nextSelectable = selectedButton?.FindSelectableOnLeft();
+        if (vertical > 0)
+            nextSelectable = selectedButton.FindSelectableOnUp();
+        else if (vertical < 0)
+            nextSelectable = selectedButton.FindSelectableOnDown();
 
-        if (nextSelectable != null && nextSelectable is Button button && IsButtonValid(button))
+        if (nextSelectable != null && nextSelectable is Button nextButton && IsButtonValid(nextButton))
         {
-            selectedButton = button;
-            EventSystem.current.SetSelectedGameObject(button.gameObject);
+            selectedButton = nextButton;
+            EventSystem.current.SetSelectedGameObject(nextButton.gameObject);
         }
     }
 
@@ -122,20 +115,20 @@ public class MainMenu : MonoBehaviour
     }
 
     private void ResetToMain()
-{
-    PlayClick();
-    iowaMenuPanel.SetActive(false);
-    gamedayMenuPanel.SetActive(false);
-    settingsMenuPanel.SetActive(false);
-    howToPlayMenuPanel.SetActive(false);
-    creditsMenuPanel.SetActive(false);
-    leaderboardPanel.SetActive(false);
+    {
+        PlayClick();
+        iowaMenuPanel.SetActive(false);
+        gamedayMenuPanel.SetActive(false);
+        settingsMenuPanel.SetActive(false);
+        howToPlayMenuPanel.SetActive(false);
+        creditsMenuPanel.SetActive(false);
+        leaderboardPanel.SetActive(false);
 
-    if (iowaCustomMenuPanel != null)
-        iowaCustomMenuPanel.SetActive(false);
+        if (iowaCustomMenuPanel != null)
+            iowaCustomMenuPanel.SetActive(false);
 
-    mainMenuPanel.SetActive(true);
-}
+        mainMenuPanel.SetActive(true);
+    }
 
 
     // ---------------- START BUTTONS ----------------
@@ -144,23 +137,23 @@ public class MainMenu : MonoBehaviour
     public void StartHard() => StartGame(GameManager.Difficulty.Hard, "IowaScene");
 
     public void StartIowaCustom()
-{
-    PlayClick();
+    {
+        PlayClick();
 
-    // Clear selection
-    EventSystem.current?.SetSelectedGameObject(null);
-    selectedButton = null;
+        // Clear selection
+        EventSystem.current?.SetSelectedGameObject(null);
+        selectedButton = null;
 
-    // Custom runs use whatever BaseDifficulty you want (Normal by default)
-    CustomSpawnSettings.IsCustomIowa = true;
-    CustomSpawnSettings.BaseDifficulty = GameManager.Difficulty.Normal;
+        // Custom runs use whatever BaseDifficulty you want (Normal by default)
+        CustomSpawnSettings.IsCustomIowa = true;
+        CustomSpawnSettings.BaseDifficulty = GameManager.Difficulty.Normal;
 
-    // Also set StartDifficulty so IowaManager picks the right baseline
-    GameManager.StartDifficulty = CustomSpawnSettings.BaseDifficulty;
+        // Also set StartDifficulty so IowaManager picks the right baseline
+        GameManager.StartDifficulty = CustomSpawnSettings.BaseDifficulty;
 
-    // Load Iowa scene
-    SceneManager.LoadScene("IowaScene");
-}
+        // Load Iowa scene
+        SceneManager.LoadScene("IowaScene");
+    }
 
     public void StartCollege() => StartGame(GameManager.Difficulty.Easy, "GamedayScene", GameManager.GameDayDifficulty.College);
     public void StartPro() => StartGame(GameManager.Difficulty.Normal, "GamedayScene", GameManager.GameDayDifficulty.Pro);
@@ -196,6 +189,11 @@ public class MainMenu : MonoBehaviour
         // Load the appropriate scene
         SceneManager.LoadScene(sceneName);
     }
+    public void LoadMultiplayerScene()
+    {
+        SceneManager.LoadScene("MultiplayerScene");
+    }
+
 
     // ---------------- SYSTEM ----------------
     public void QuitGame()

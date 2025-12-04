@@ -76,6 +76,10 @@ public class AudioManager : MonoBehaviour
         {
             PlayMusic(gameDayMusic);
         }
+        else if (name == "MultiplayerScene")
+        {
+            PlayMusic(gameDayMusic);
+        }
     }
 
     public void SwitchMusicForMode(GameManager.GameMode mode)

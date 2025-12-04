@@ -18,14 +18,13 @@ public class GameDayManager : MonoBehaviour
     public GameObject playButton;
     public GameObject gameOver;
     public GameObject readyButton;
-    public GameObject menuButton;
     public TMP_InputField playerNameInput;
 
     // UI
     [SerializeField] private TextMeshProUGUI modeText;
     private TextMeshProUGUI playerScoreText;
     private TextMeshProUGUI opponentScoreText;
-    
+
     [Header("Game Over UI")]
     [SerializeField] private TextMeshProUGUI goCurrentScoreText;
     [SerializeField] private TextMeshProUGUI goHighScoreText;
@@ -107,6 +106,7 @@ public class GameDayManager : MonoBehaviour
         SelectPlayButton();
     }
 
+    //  FIXED ï¿½ this was REMOVED previously; adding it back.
     private void Update()
     {
         if (IsGameActive())
@@ -294,6 +294,8 @@ public class GameDayManager : MonoBehaviour
 
     public void Play()
     {
+        PauseManager.GameIsActive = true;
+
         if (player != null)
             player.gameObject.SetActive(true);
 
@@ -302,7 +304,6 @@ public class GameDayManager : MonoBehaviour
         playButton?.SetActive(false);
         gameOver?.SetActive(false);
         readyButton?.SetActive(false);
-        menuButton?.SetActive(false);
         playerNameInput?.gameObject.SetActive(false);
 
         Time.timeScale = 1f;
@@ -321,6 +322,8 @@ public class GameDayManager : MonoBehaviour
 
     public void GameOver()
     {
+        PauseManager.GameIsActive = false;
+
         LogGameDayRun();
 
         if (player != null)
@@ -330,7 +333,7 @@ public class GameDayManager : MonoBehaviour
             goCurrentScoreText.text = playerScore.ToString();
 
         if (goModeDifficultyText != null)
-            goModeDifficultyText.text = $"GameDay — {CurrentGameDayDifficulty}";
+            goModeDifficultyText.text = $"GameDay - {CurrentGameDayDifficulty}";
 
         int highScore = LoadHighScore(CurrentGameDayDifficulty.ToString());
         if (goHighScoreText != null)
@@ -340,7 +343,6 @@ public class GameDayManager : MonoBehaviour
         gameOver?.SetActive(true);
         playButton.SetActive(true);
         readyButton?.SetActive(false);
-        menuButton.SetActive(true);
 
         spawner?.ClearAllGameDayActors();
 
@@ -374,13 +376,6 @@ public class GameDayManager : MonoBehaviour
         spawner?.ResetSpawner();
     }
 
-
-    public void ReturnToMainMenu()
-    {
-        AudioManager.Instance?.PlayClickSound();
-        Time.timeScale = 1f;
-        SceneManager.LoadScene("MenuScreen");
-    }
 
     // -------------------- Logging --------------------
     private string GetFinalizedPlayerName()

@@ -17,7 +17,6 @@ public class IowaManager : MonoBehaviour
     public GameObject playButton;
     public GameObject gameOver;
     public GameObject readyButton;
-    public GameObject menuButton;
     public TMP_InputField playerNameInput;
 
     // UI
@@ -62,7 +61,6 @@ public class IowaManager : MonoBehaviour
         // Show these on load
         readyButton?.SetActive(true);
         playButton?.SetActive(true);
-        menuButton?.SetActive(true);
         playerNameInput?.gameObject.SetActive(true);
 
         // Make sure UI labels are shown normally
@@ -97,13 +95,12 @@ public class IowaManager : MonoBehaviour
 
             if (jumpPressed) jumps++;
         }
-
-        if (Input.GetKeyDown(KeyCode.Escape))
-            QuitGame();
     }
 
     public void Play()
     {
+        PauseManager.GameIsActive = true;
+
         score = 0;
         scoreText.text = "0";
         obstaclesSpawned = 0;
@@ -112,7 +109,6 @@ public class IowaManager : MonoBehaviour
 
         readyButton?.SetActive(false);
         playButton?.SetActive(false);
-        menuButton?.SetActive(false);
         playerNameInput?.gameObject.SetActive(false);
         gameOver?.SetActive(false);
 
@@ -164,9 +160,11 @@ public class IowaManager : MonoBehaviour
 
     public void GameOver()
     {
+        PauseManager.GameIsActive = false;
+
         if (!CustomSpawnSettings.IsCustomIowa)
         {
-        LogIowaRun();
+            LogIowaRun();
         }
 
         if (player != null)
@@ -182,11 +180,13 @@ public class IowaManager : MonoBehaviour
         if (goHighScoreText != null)
             goHighScoreText.text = highScore.ToString();
 
+        // Hide player when Game Over happens
+        if (player != null)
+            player.gameObject.SetActive(false);
+
         gameOver.SetActive(true);
         playButton.SetActive(true);
-        menuButton.SetActive(true);
         readyButton?.SetActive(false);
-
         Pause();
         SelectPlayButton();
     }
@@ -276,13 +276,6 @@ public class IowaManager : MonoBehaviour
     public void OnPlayerHealed(int helmetDurability)
     {
         UpdateAllDisplays();
-    }
-
-    public void ReturnToMainMenu()
-    {
-        AudioManager.Instance?.PlayClickSound();
-        Time.timeScale = 1f;
-        SceneManager.LoadScene("MenuScreen");
     }
 
     public void QuitGame()

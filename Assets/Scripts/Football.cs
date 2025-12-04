@@ -84,8 +84,9 @@ public class Football : MonoBehaviour
 
             // Drop football manually with 'E' or controller bumpers
             bool dropKey = Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
-            bool dropController = ControllerInputManager.Instance != null && ControllerInputManager.Instance.IsBallDropPressed();
-            
+            bool dropController = ControllerInputManager.Instance != null &&
+                                  ControllerInputManager.Instance.GetDrop(Player.PlayerID.Player1);
+
             if (dropKey || dropController)
                 Drop();
         }
