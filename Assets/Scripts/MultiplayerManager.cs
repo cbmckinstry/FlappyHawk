@@ -48,8 +48,8 @@ public class MultiplayerManager : MonoBehaviour
 
         gameOverPanel?.SetActive(false);
 
-        if (player1 != null) player1.gameObject.SetActive(false);
-        if (player2 != null) player2.gameObject.SetActive(false);
+        if (player1 != null) player1.gameObject.SetActive(true);
+        if (player2 != null) player2.gameObject.SetActive(true);
 
         Pause();
     }
@@ -57,12 +57,26 @@ public class MultiplayerManager : MonoBehaviour
     private void Start()
     {
         ControllerInputManager.Instance.RecheckControllers();
-        SelectPlayButton();
-        ResetScores();
-        SetInitialRoles();
-        UpdateScoreUI();
-        UpdateModeDisplay(false);
+    SelectPlayButton();
+
+    ResetScores();
+    SetInitialRoles();
+    UpdateScoreUI();
+    UpdateModeDisplay(false);
+
+    // NEW: preview the players in their real in-game positions/roles
+    PositionPlayersForNewDrive();   // puts carrier at -1.5, blocker at +1.5 (y = 0)
+
+    // Optional but nice: same helmet look as offense
+    GiveHelmetsForOffense();        // carrier no helmet, blocker with helmet
+
+    if (spawner != null && ballCarrier != null)
+    {
+        spawner.ResetSpawner();              // just in case
+        spawner.SpawnFootball(ballCarrier);  // attaches ball to the carrier
     }
+    }
+
 
     // ============================================================
     //  ROLE SETUP
