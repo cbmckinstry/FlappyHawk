@@ -2,9 +2,6 @@
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
-[Bb]uild/
-[Bb]uilds/
-!Builds/**        # <-- UNIGNORE THIS SPECIFIC FOLDER
 [Ll]ogs/
 UserSettings/
 MemoryCaptures/
