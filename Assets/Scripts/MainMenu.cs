@@ -196,6 +196,11 @@ public class MainMenu : MonoBehaviour
         // Load the appropriate scene
         SceneManager.LoadScene(sceneName);
     }
+    public void LoadMultiplayerScene()
+    {
+        SceneManager.LoadScene("MultiplayerScene");
+    }
+
 
     // ---------------- SYSTEM ----------------
     public void QuitGame()
