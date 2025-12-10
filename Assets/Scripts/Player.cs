@@ -184,51 +184,17 @@ public class Player : MonoBehaviour
         // ===========================================
         // MULTIPLAYER INPUT
         // ===========================================
-        // ===========================================
-// MULTIPLAYER INPUT (CONTROLLER + KEYBOARD)
-// ===========================================
-if (isMultiplayer)
-{
-    var input = ControllerInputManager.Instance;
-
-    bool controllerFlap = false;
-    bool controllerDrop = false;
-
-    if (input != null)
-    {
-        controllerFlap = input.GetFlap(playerID);
-        controllerDrop = input.GetDrop(playerID);
-    }
-
-    bool keyboardFlap = false;
-    bool keyboardDrop = false;
-
-    if (Keyboard.current != null)
-    {
-        switch (playerID)
+        if (isMultiplayer)
         {
-            case PlayerID.Player1:
-                // P1: W to flap, S to drop
-                keyboardFlap = Keyboard.current.wKey.wasPressedThisFrame;
-                keyboardDrop = Keyboard.current.sKey.wasPressedThisFrame;
-                break;
+            var input = ControllerInputManager.Instance;
 
-            case PlayerID.Player2:
-                // P2: UpArrow to flap, DownArrow to drop
-                keyboardFlap = Keyboard.current.upArrowKey.wasPressedThisFrame;
-                keyboardDrop = Keyboard.current.downArrowKey.wasPressedThisFrame;
-                break;
+            // Controller inputs ONLY
+            flap = input.GetFlap(playerID);
+            drop = input.GetDrop(playerID);
+
+            if (drop)
+                MultiplayerManager.Instance?.HandleFootballDrop(this);
         }
-    }
-
-    // Combine controller + keyboard
-    flap = controllerFlap || keyboardFlap;
-    drop = controllerDrop || keyboardDrop;
-
-    if (drop)
-        MultiplayerManager.Instance?.HandleFootballDrop(this);
-}
-
 
         // ===========================================
         // SINGLE PLAYER INPUT
@@ -337,7 +303,11 @@ if (isMultiplayer)
                 {
                     // OFFENSE
                     if (isCarrier)
+                    {
                         mp.GameOver();
+                        AudioManager.Instance?.PlayGrunt();
+                    }
+
                     else
                         Destroy(other.gameObject);
                 }

@@ -2,12 +2,28 @@
 
 public class MultiplayerGoalPost : MonoBehaviour
 {
-    [Header("Movement")]
-    public float moveSpeed = 4.5f;
+    private float moveSpeed;
     private float leftEdge;
 
     private bool hasScored = false;
     private bool roundEnded = false;
+
+    private void OnEnable()
+    {
+        // sync to global scroll speed like SP mode
+        moveSpeed = GameManager.CurrentScrollSpeed;
+        GameManager.OnScrollSpeedChanged += HandleSpeedChanged;
+    }
+
+    private void OnDisable()
+    {
+        GameManager.OnScrollSpeedChanged -= HandleSpeedChanged;
+    }
+
+    private void HandleSpeedChanged(float newSpeed)
+    {
+        moveSpeed = newSpeed;
+    }
 
     private void Start()
     {
@@ -19,18 +35,18 @@ public class MultiplayerGoalPost : MonoBehaviour
 
         leftEdge = Camera.main.ScreenToWorldPoint(Vector3.zero).x - 1f;
 
-        // Tag as scoring trigger
+        // Make sure collisions use the scoring tag
         gameObject.tag = "Scoring";
     }
 
     private void Update()
     {
+        // Move in sync with ALL environment scrolling (exact SP behavior)
         transform.position += Vector3.left * moveSpeed * Time.deltaTime;
 
-        // If the goalpost leaves the screen and nothing scored → missed FG
+        // Missed FG = despawn + defense starts
         if (!roundEnded && transform.position.x < leftEdge)
         {
-            Debug.Log("[MP GoalPost] Goal missed → switching to defense.");
             MultiplayerManager.Instance.TriggerDefenseRound();
             roundEnded = true;
             Destroy(gameObject);
@@ -44,56 +60,43 @@ public class MultiplayerGoalPost : MonoBehaviour
         var mp = MultiplayerManager.Instance;
         if (mp == null) return;
 
-        // --- CASE 1: Player enters FG ---
+        // --- PLAYER ENTERS ---
         Player p = other.GetComponent<Player>();
-
         if (p != null)
         {
-            // NON–ball-carrier entering → NO SCORE
+            // Only ball carrier can score
             if (!mp.IsBallCarrier(p))
                 return;
 
-            // Ball carrier enters but MUST have the football to score
+            // Must physically have the ball for 7 points
             MultiplayerFootball fb = FindFirstObjectByType<MultiplayerFootball>();
-
             if (fb != null && fb.IsCarriedBy(p))
             {
-                // Proper touchdown (7)
                 mp.OnPlayerEnteredScoring(p);
-                ScoreAndEndRound();
-                return;
+                AudioManager.Instance?.PlayTouchdown();
             }
             else
             {
-                // Ball carrier entered WITHOUT the ball → turnover
-                Debug.Log("[MP GoalPost] Ball carrier entered goal without ball → turnover.");
+                // Entered without ball = turnover
                 mp.TriggerDefenseRound();
-                ScoreAndEndRound(false);
-                return;
             }
-        }
 
-        // --- CASE 2: DROPPED FOOTBALL ENTERS FG ---
-        MultiplayerFootball dropped = other.GetComponent<MultiplayerFootball>();
-
-        if (dropped != null && !dropped.IsCarried())
-        {
-            Player lastCarrier = mp.GetBallCarrier();
-            mp.OnBallDroppedScored(lastCarrier); // field goal (3)
-            ScoreAndEndRound();
+            hasScored = true;
+            roundEnded = true;
+            Destroy(gameObject);
             return;
         }
-    }
 
-    private void ScoreAndEndRound(bool scored = true)
-    {
-        hasScored = true;
-        roundEnded = true;
-        Invoke(nameof(DestroySelf), 0.05f);
-    }
+        // --- DROPPED BALL ENTERS (3 points) ---
+        MultiplayerFootball dropped = other.GetComponent<MultiplayerFootball>();
+        if (dropped != null && !dropped.IsCarried())
+        {
+            mp.OnBallDroppedScored(mp.GetBallCarrier());
+            AudioManager.Instance?.PlayFieldGoal();
 
-    private void DestroySelf()
-    {
-        Destroy(gameObject);
+            hasScored = true;
+            roundEnded = true;
+            Destroy(gameObject);
+        }
     }
 }

@@ -61,6 +61,22 @@ public class MultiplayerBallCarrierBird : MonoBehaviour
         if (spriteRenderer == null)
             spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
 
+        // Force MP ball-carrier to face left
+        spriteRenderer.flipX = true;
+
+
+        // --- Force helmet on in MP mode ---
+        var helmet = transform.Find("HelmetDisplay");
+        if (helmet != null)
+        {
+            helmet.gameObject.SetActive(true);
+
+            // Make sure helmet renders above the body
+            var hr = helmet.GetComponent<SpriteRenderer>();
+            if (hr != null)
+                hr.sortingOrder = spriteRenderer.sortingOrder + 1;
+        }
+
         // Keep whatever flip / sprite you set in the prefab.
         // Attach the ball sprite under the bird:
         AttachBallSprite(ballSprite);
@@ -80,6 +96,9 @@ public class MultiplayerBallCarrierBird : MonoBehaviour
             hasDespawned = true;
             if (MP != null && MP.InDefenseRound)
                 MP.EndDefenseRound(false);
+            
+            AudioManager.Instance?.PlayEnemyScore();
+
 
             Destroy(gameObject);
         }

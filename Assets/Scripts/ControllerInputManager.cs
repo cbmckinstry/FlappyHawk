@@ -25,16 +25,24 @@ public class ControllerInputManager : MonoBehaviour
 
     private void AssignControllers()
     {
-        // Detects all connected gamepads and assigns first two
-        if (Gamepad.all.Count > 0)
-            p1Controller = Gamepad.all[0];
+        var pads = Gamepad.all;
 
-        if (Gamepad.all.Count > 1)
-            p2Controller = Gamepad.all[1];
+        if (pads.Count == 0)
+        {
+            p1Controller = null;
+            p2Controller = null;
+            return;
+        }
 
-        Debug.Log($"[ControllerInputManager] Controllers assigned: " +
-                  $"P1={(p1Controller != null)} P2={(p2Controller != null)}");
+        // Always assign first controller to Player 1
+        p1Controller = pads[0];
+
+        // Assign next controller to Player 2 (if exists)
+        p2Controller = pads.Count > 1 ? pads[1] : null;
+
+        Debug.Log($"[ControllerInputManager] P1={p1Controller} P2={p2Controller}");
     }
+
 
     // Call this when scene loads
     public void RecheckControllers() => AssignControllers();
@@ -49,28 +57,36 @@ public class ControllerInputManager : MonoBehaviour
     // ============================
     public bool GetFlap(Player.PlayerID id)
     {
-        if (id == Player.PlayerID.Player1 && p1Controller != null)
-            return p1Controller.buttonSouth.wasPressedThisFrame; // A / X
-
-        if (id == Player.PlayerID.Player2 && p2Controller != null)
-            return p2Controller.buttonSouth.wasPressedThisFrame;
-
-        return false;
+        var pad = MultiplayerManager.Instance.GetControllerForPlayer(id);
+        return pad != null && pad.buttonSouth.wasPressedThisFrame;
     }
 
-    // ============================
-    // INPUT — DROP
-    // ============================
     public bool GetDrop(Player.PlayerID id)
     {
-        if (id == Player.PlayerID.Player1 && p1Controller != null)
-            return p1Controller.rightShoulder.wasPressedThisFrame;
 
-        if (id == Player.PlayerID.Player2 && p2Controller != null)
-            return p2Controller.rightShoulder.wasPressedThisFrame;
+        if (id == Player.PlayerID.Player1)
+        {
+            // SP: allow S key OR any connected controller
+            if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+                return true;
+
+            // Check ANY controller (safe + no crash)
+            foreach (var pad in Gamepad.all)
+                if (pad.rightShoulder.wasPressedThisFrame)
+                    return true;
+
+            return false;
+        }
+
+
+        // Player 2 controller
+        if (id == Player.PlayerID.Player2)
+            return p2Controller != null && p2Controller.rightShoulder.wasPressedThisFrame;
 
         return false;
     }
+
+
 
     // ============================
     // Optional Pause input
@@ -108,6 +124,22 @@ public class ControllerInputManager : MonoBehaviour
 
         return 0;
     }
+    public float GetMenuHorizontal()
+    {
+        if (Gamepad.all.Count == 0)
+            return 0;
+
+        var g = Gamepad.all[0];
+
+        if (g.dpad.left.wasPressedThisFrame) return -1;
+        if (g.dpad.right.wasPressedThisFrame) return 1;
+
+        if (g.leftStick.left.wasPressedThisFrame) return -1;
+        if (g.leftStick.right.wasPressedThisFrame) return 1;
+
+        return 0;
+    }
+
 
     // Submit (A / X button)
     public bool GetMenuSubmit()

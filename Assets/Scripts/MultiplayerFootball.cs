@@ -11,7 +11,6 @@ public class MultiplayerFootball : MonoBehaviour
     // Prevent instant pickup after dropping
     private float pickupDelay = 0f;
     private const float PICKUP_DELAY_TIME = 0.25f;
-    public bool PreviewMode = false;
 
     // For off-screen detection
     private float leftEdge;
@@ -126,6 +125,7 @@ public class MultiplayerFootball : MonoBehaviour
             else
             {
                 MP.OnBallDroppedScored(MP.GetBallCarrier()); // +3
+                AudioManager.Instance?.PlayFieldGoal();
             }
 
             Destroy(gameObject);

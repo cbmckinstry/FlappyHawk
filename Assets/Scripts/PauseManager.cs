@@ -1,23 +1,26 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;   // <-- added for UI control
+using UnityEngine.UI;              // <-- added for button access
 
 public class PauseManager : MonoBehaviour
 {
     [Header("UI Roots")]
-    public GameObject PauseMenu;             // Entire pause menu container
-    public GameObject PauseMenuButtons;      // Resume / Restart / Settings / Controls / Exit
-    public GameObject PauseButton;           // Pause icon in gameplay HUD
+    public GameObject PauseMenu;
+    public GameObject PauseMenuButtons;
+    public GameObject PauseButton;
 
     [Header("Sub Panels")]
     public GameObject SettingsPanel;
     public GameObject ControlsPanel;
     public GameObject GameOverPanel;
 
+    // NEW: default highlighted button when pause opens
+    public Button pauseResumeButton;
 
     private bool isPaused = false;
 
-    // True only after hitting the Play button in Iowa/GameDay
     public static bool GameIsActive = false;
 
     private void Start()
@@ -38,6 +41,24 @@ public class PauseManager : MonoBehaviour
 
         if (pausePressed)
             TogglePause();
+
+        // -------------------------------
+        // NEW: Controller activate selected button with A
+        // -------------------------------
+        if (isPaused)
+        {
+            var pad = Gamepad.current;
+            if (pad != null && pad.buttonSouth.wasPressedThisFrame)   // A button
+            {
+                GameObject selected = EventSystem.current.currentSelectedGameObject;
+                if (selected != null)
+                {
+                    Button b = selected.GetComponent<Button>();
+                    if (b != null)
+                        b.onClick.Invoke();
+                }
+            }
+        }
     }
 
     public void TogglePause()
@@ -45,8 +66,6 @@ public class PauseManager : MonoBehaviour
         if (isPaused) Resume();
         else Pause();
     }
-
-    // --------------------- PUBLIC BUTTON METHODS ---------------------
 
     public void Resume()
     {
@@ -67,14 +86,12 @@ public class PauseManager : MonoBehaviour
         }
         else
         {
-            // Restore GameOver UI in non-active state
             if (GameOverPanel != null)
                 GameOverPanel.SetActive(true);
 
             Time.timeScale = 0f;
         }
     }
-
 
     public void Pause()
     {
@@ -88,17 +105,20 @@ public class PauseManager : MonoBehaviour
 
         PauseButton?.SetActive(false);
 
-        // hide game over no matter what
         if (GameOverPanel != null)
             GameOverPanel.SetActive(false);
 
         AudioManager.Instance?.PauseMusic(true);
-    }
 
+        // ------------------------------------------
+        // NEW: Select the Resume button automatically
+        // ------------------------------------------
+        if (pauseResumeButton != null)
+            EventSystem.current?.SetSelectedGameObject(pauseResumeButton.gameObject);
+    }
 
     public void Restart()
     {
-        // Restart always starts a new round
         GameIsActive = true;
 
         Time.timeScale = 1f;
@@ -111,6 +131,8 @@ public class PauseManager : MonoBehaviour
         PauseMenuButtons?.SetActive(false);
         ControlsPanel?.SetActive(false);
         SettingsPanel?.SetActive(true);
+
+        // Auto-select first button inside settings panel if desired
     }
 
     public void OpenControls()
@@ -118,6 +140,8 @@ public class PauseManager : MonoBehaviour
         PauseMenuButtons?.SetActive(false);
         SettingsPanel?.SetActive(false);
         ControlsPanel?.SetActive(true);
+
+        // Auto-select first button inside controls panel if desired
     }
 
     public void BackToPauseMenu()
@@ -125,6 +149,10 @@ public class PauseManager : MonoBehaviour
         SettingsPanel?.SetActive(false);
         ControlsPanel?.SetActive(false);
         PauseMenuButtons?.SetActive(true);
+
+        // Re-select resume button
+        if (pauseResumeButton != null)
+            EventSystem.current?.SetSelectedGameObject(pauseResumeButton.gameObject);
     }
 
     public void ExitToMainMenu()

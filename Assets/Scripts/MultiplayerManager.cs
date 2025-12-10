@@ -2,6 +2,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class MultiplayerManager : MonoBehaviour
@@ -29,6 +30,26 @@ public class MultiplayerManager : MonoBehaviour
     [Header("Round Settings")]
     [SerializeField] private float defenseRoundDuration = 10f;
 
+    [Header("Ready Up UI")]
+    public GameObject readyMenu;
+    public TextMeshProUGUI p1Text;
+    public TextMeshProUGUI p2Text;
+
+    [Header("Player Labels")]
+    public RectTransform player1Label;
+    public RectTransform player2Label;
+
+    // Ready state
+    private bool p1Ready = false;
+    private bool p2Ready = false;
+
+    // Controller assignments
+    private Gamepad p1Controller;
+    private Gamepad p2Controller;
+
+    private Camera cam;
+
+
     // === STATE ===
     public bool InDefenseRound { get; private set; } = false;
     private bool isSpawningPaused = false;
@@ -48,8 +69,8 @@ public class MultiplayerManager : MonoBehaviour
 
         gameOverPanel?.SetActive(false);
 
-        if (player1 != null) player1.gameObject.SetActive(true);
-        if (player2 != null) player2.gameObject.SetActive(true);
+        if (player1 != null) player1.gameObject.SetActive(false);
+        if (player2 != null) player2.gameObject.SetActive(false);
 
         Pause();
     }
@@ -57,24 +78,22 @@ public class MultiplayerManager : MonoBehaviour
     private void Start()
     {
         ControllerInputManager.Instance.RecheckControllers();
-    SelectPlayButton();
 
-    ResetScores();
-    SetInitialRoles();
-    UpdateScoreUI();
-    UpdateModeDisplay(false);
+        cam = Camera.main;
 
-    // NEW: preview the players in their real in-game positions/roles
-    PositionPlayersForNewDrive();   // puts carrier at -1.5, blocker at +1.5 (y = 0)
+        // Hide gameplay UI until ready
+        playButton?.SetActive(false);
+        readyMenu?.SetActive(true);
 
-    // Optional but nice: same helmet look as offense
-    GiveHelmetsForOffense();        // carrier no helmet, blocker with helmet
+        // Hide birds until joined
+        if (player1 != null) player1.gameObject.SetActive(false);
+        if (player2 != null) player2.gameObject.SetActive(false);
 
-    if (spawner != null && ballCarrier != null)
-    {
-        spawner.ResetSpawner();              // just in case
-        spawner.SpawnFootball(ballCarrier);  // attaches ball to the carrier
-    }
+        // Default text
+        p1Text.text = "Player 1: Press A / X to connect";
+        p2Text.text = "Player 2: Press A / X to connect";
+
+        Pause();
     }
 
 
@@ -181,6 +200,120 @@ public class MultiplayerManager : MonoBehaviour
         modeText.gameObject.SetActive(false);
     }
 
+    private void Update()
+    {
+        if (!PauseManager.GameIsActive)
+        {
+            if (!p1Ready || !p2Ready)
+            {
+                CheckForControllerJoin();
+            }
+            else
+            {
+                if (playButton.activeSelf)
+                {
+                    foreach (var pad in Gamepad.all)
+                    {
+                        if (pad.buttonSouth.wasPressedThisFrame)
+                        {
+                            playButton.GetComponent<Button>().onClick.Invoke();
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        UpdatePlayerLabels();
+    }
+
+
+
+    private void CheckForControllerJoin()
+    {
+        var pads = Gamepad.all;
+        if (pads.Count == 0) return;
+
+        foreach (var pad in pads)
+        {
+            // Player 1 join
+            if (!p1Ready && pad.buttonSouth.wasPressedThisFrame)
+            {
+                p1Ready = true;
+                p1Controller = pad;
+
+                ActivatePlayerSlot(1);
+                p1Text.text = "Player 1: Connected";
+                continue;
+            }
+
+            // Player 2 join
+            if (!p2Ready &&
+                pad.buttonSouth.wasPressedThisFrame &&
+                p1Controller != null &&
+                pad.deviceId != p1Controller.deviceId)
+            {
+                p2Ready = true;
+                p2Controller = pad;
+
+                ActivatePlayerSlot(2);
+                p2Text.text = "Player 2: Connected";
+                continue;
+            }
+        }
+
+        // If both are ready → enable Play button
+        if (p1Ready && p2Ready)
+            playButton?.SetActive(true);
+            SelectPlayButton();
+
+    }
+
+
+    private void ActivatePlayerSlot(int slot)
+    {
+        if (slot == 1)
+        {
+            player1.gameObject.SetActive(true);
+            player1.playerID = Player.PlayerID.Player1;
+            player1.isMultiplayer = true;
+
+            // Position
+            player1.transform.position = new Vector3(-1.5f, 0f, 0f);
+        }
+        else
+        {
+            player2.gameObject.SetActive(true);
+            player2.playerID = Player.PlayerID.Player2;
+            player2.isMultiplayer = true;
+
+            player2.transform.position = new Vector3(1.5f, 0f, 0f);
+        }
+    }
+
+    private void UpdatePlayerLabels()
+    {
+        if (cam == null) return;
+
+        if (player1 != null && player1.gameObject.activeSelf)
+        {
+            Vector3 pos = cam.WorldToScreenPoint(player1.transform.position + new Vector3(0, 1f, 0));
+            player1Label.position = pos;
+        }
+
+        if (player2 != null && player2.gameObject.activeSelf)
+        {
+            Vector3 pos = cam.WorldToScreenPoint(player2.transform.position + new Vector3(0, 1f, 0));
+            player2Label.position = pos;
+        }
+    }
+    public Gamepad GetControllerForPlayer(Player.PlayerID pid)
+    {
+        if (pid == Player.PlayerID.Player1) return p1Controller;
+        return p2Controller;
+    }
+
+
     // ============================================================
     //  PLAY / RESET / GAME OVER
     // ============================================================
@@ -189,6 +322,7 @@ public class MultiplayerManager : MonoBehaviour
     {
         PauseManager.GameIsActive = true;
 
+        readyMenu?.SetActive(false);
         playButton?.SetActive(false);
         readyButton?.SetActive(false);
         gameOverPanel?.SetActive(false);
@@ -205,6 +339,7 @@ public class MultiplayerManager : MonoBehaviour
 
         Time.timeScale = 1f;
     }
+
 
     private void ActivatePlayer(Player p, float xPos)
     {
@@ -229,9 +364,9 @@ public class MultiplayerManager : MonoBehaviour
 
     public void GameOver()
     {
-        PauseManager.GameIsActive = false;
+        AudioManager.Instance?.PlaySplat();
 
-        spawner?.ResetSpawner();
+        PauseManager.GameIsActive = false;
 
         if (player1 != null) player1.gameObject.SetActive(false);
         if (player2 != null) player2.gameObject.SetActive(false);
@@ -255,6 +390,8 @@ public class MultiplayerManager : MonoBehaviour
 
     private void StartOffenseRound()
     {
+        AudioManager.Instance?.PlayWhistle();
+
         InDefenseRound = false;
         isSpawningPaused = false;
 
@@ -270,6 +407,8 @@ public class MultiplayerManager : MonoBehaviour
 
     private void StartDefenseRound()
     {
+        AudioManager.Instance?.PlayWhistle();
+
         InDefenseRound = true;
         isSpawningPaused = false;
 
