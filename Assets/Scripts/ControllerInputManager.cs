@@ -56,35 +56,59 @@ public class ControllerInputManager : MonoBehaviour
     // INPUT — FLAP
     // ============================
     public bool GetFlap(Player.PlayerID id)
+{
+    // ============================
+    // KEYBOARD INPUT
+    // ============================
+    if (Keyboard.current != null)
     {
-        var pad = MultiplayerManager.Instance.GetControllerForPlayer(id);
-        return pad != null && pad.buttonSouth.wasPressedThisFrame;
-    }
-
-    public bool GetDrop(Player.PlayerID id)
-    {
-
-        if (id == Player.PlayerID.Player1)
+        if (id == Player.PlayerID.Player1 &&
+            Keyboard.current.wKey.wasPressedThisFrame)
         {
-            // SP: allow S key OR any connected controller
-            if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
-                return true;
-
-            // Check ANY controller (safe + no crash)
-            foreach (var pad in Gamepad.all)
-                if (pad.rightShoulder.wasPressedThisFrame)
-                    return true;
-
-            return false;
+            return true;    // P1 flap = W
         }
 
-
-        // Player 2 controller
-        if (id == Player.PlayerID.Player2)
-            return p2Controller != null && p2Controller.rightShoulder.wasPressedThisFrame;
-
-        return false;
+        if (id == Player.PlayerID.Player2 &&
+            Keyboard.current.upArrowKey.wasPressedThisFrame)
+        {
+            return true;    // P2 flap = Up Arrow
+        }
     }
+
+    // ============================
+    // CONTROLLER INPUT
+    // ============================
+    var pad = MultiplayerManager.Instance.GetControllerForPlayer(id);
+    return pad != null && pad.buttonSouth.wasPressedThisFrame;
+}
+
+public bool GetDrop(Player.PlayerID id)
+{
+    // ============================
+    // KEYBOARD INPUT
+    // ============================
+    if (Keyboard.current != null)
+    {
+        if (id == Player.PlayerID.Player1 &&
+            Keyboard.current.sKey.wasPressedThisFrame)
+        {
+            return true;    // P1 drop = S
+        }
+
+        if (id == Player.PlayerID.Player2 &&
+            Keyboard.current.downArrowKey.wasPressedThisFrame)
+        {
+            return true;    // P2 drop = Down Arrow
+        }
+    }
+
+    // ============================
+    // CONTROLLER INPUT (right shoulder)
+    // ============================
+    var pad = MultiplayerManager.Instance.GetControllerForPlayer(id);
+    return pad != null && pad.rightShoulder.wasPressedThisFrame;
+}
+
 
 
 

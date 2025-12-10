@@ -139,9 +139,9 @@ public class MultiplayerBallCarrierBird : MonoBehaviour
             hasBeenHit = true;
 
             // defense win!
+            Destroy(gameObject);
             MP.EndDefenseRound(true);
 
-            Destroy(gameObject);
         }
     }
 

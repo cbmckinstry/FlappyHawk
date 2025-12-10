@@ -118,13 +118,15 @@ public class PauseManager : MonoBehaviour
     }
 
     public void Restart()
-    {
-        GameIsActive = true;
+{
+    // The game should NOT be marked active yet on reload.
+    GameIsActive = false;
 
-        Time.timeScale = 1f;
-        Scene current = SceneManager.GetActiveScene();
-        SceneManager.LoadScene(current.name);
-    }
+    Time.timeScale = 1f;
+    Scene current = SceneManager.GetActiveScene();
+    SceneManager.LoadScene(current.name);
+}
+
 
     public void OpenSettings()
     {

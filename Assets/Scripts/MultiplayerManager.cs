@@ -90,8 +90,8 @@ public class MultiplayerManager : MonoBehaviour
         if (player2 != null) player2.gameObject.SetActive(false);
 
         // Default text
-        p1Text.text = "Player 1: Press A / X to connect";
-        p2Text.text = "Player 2: Press A / X to connect";
+        p1Text.text = "Player 1: A / X / W Key to connect";
+        p2Text.text = "Player 2: A / X / ↑ Key to connect";
 
         Pause();
     }
@@ -224,50 +224,105 @@ public class MultiplayerManager : MonoBehaviour
             }
         }
 
+        else{
+    if (playButton.activeSelf)
+    {
+        // Controllers can start
+        foreach (var pad in Gamepad.all)
+        {
+            if (pad.buttonSouth.wasPressedThisFrame)
+            {
+                playButton.GetComponent<Button>().onClick.Invoke();
+                return;
+            }
+        }
+
+        // Keyboard can start (Enter or Space)
+        if (Keyboard.current != null &&
+            (Keyboard.current.enterKey.wasPressedThisFrame ||
+             Keyboard.current.spaceKey.wasPressedThisFrame))
+        {
+            playButton.GetComponent<Button>().onClick.Invoke();
+            return;
+        }
+    }
+    }
+
+
         UpdatePlayerLabels();
     }
 
 
 
     private void CheckForControllerJoin()
+{
+    // ============================
+    // CONTROLLER JOIN
+    // ============================
+    var pads = Gamepad.all;
+
+    foreach (var pad in pads)
     {
-        var pads = Gamepad.all;
-        if (pads.Count == 0) return;
-
-        foreach (var pad in pads)
+        // Player 1 join (controller)
+        if (!p1Ready && pad.buttonSouth.wasPressedThisFrame)
         {
-            // Player 1 join
-            if (!p1Ready && pad.buttonSouth.wasPressedThisFrame)
-            {
-                p1Ready = true;
-                p1Controller = pad;
+            p1Ready = true;
+            p1Controller = pad;
 
-                ActivatePlayerSlot(1);
-                p1Text.text = "Player 1: Connected";
-                continue;
-            }
-
-            // Player 2 join
-            if (!p2Ready &&
-                pad.buttonSouth.wasPressedThisFrame &&
-                p1Controller != null &&
-                pad.deviceId != p1Controller.deviceId)
-            {
-                p2Ready = true;
-                p2Controller = pad;
-
-                ActivatePlayerSlot(2);
-                p2Text.text = "Player 2: Connected";
-                continue;
-            }
+            ActivatePlayerSlot(1);
+            p1Text.text = "Player 1: Controller connected";
+            continue;
         }
 
-        // If both are ready → enable Play button
-        if (p1Ready && p2Ready)
-            playButton?.SetActive(true);
-            SelectPlayButton();
+        // Player 2 join (controller)
+        if (!p2Ready &&
+            pad.buttonSouth.wasPressedThisFrame &&
+            p1Controller != null &&
+            pad.deviceId != p1Controller.deviceId)
+        {
+            p2Ready = true;
+            p2Controller = pad;
 
+            ActivatePlayerSlot(2);
+            p2Text.text = "Player 2: Controller connected";
+            continue;
+        }
     }
+
+    // ============================
+    // KEYBOARD JOIN
+    // ============================
+    if (Keyboard.current != null)
+    {
+        // Player 1 join (keyboard)
+        if (!p1Ready && Keyboard.current.wKey.wasPressedThisFrame)
+        {
+            p1Ready = true;
+            p1Controller = null;   // keyboard-controlled
+            ActivatePlayerSlot(1);
+            p1Text.text = "Player 1: Keyboard (W/S)";
+        }
+
+        // Player 2 join (keyboard)
+        if (!p2Ready && Keyboard.current.upArrowKey.wasPressedThisFrame)
+        {
+            p2Ready = true;
+            p2Controller = null;   // keyboard-controlled
+            ActivatePlayerSlot(2);
+            p2Text.text = "Player 2: Keyboard (↑)";
+        }
+    }
+
+    // ============================
+    // ENABLE PLAY BUTTON
+    // ============================
+    if (p1Ready && p2Ready)
+    {
+        playButton?.SetActive(true);
+        SelectPlayButton();
+    }
+}
+
 
 
     private void ActivatePlayerSlot(int slot)
@@ -319,27 +374,32 @@ public class MultiplayerManager : MonoBehaviour
     // ============================================================
 
     public void Play()
-    {
-        PauseManager.GameIsActive = true;
+{
+    PauseManager.GameIsActive = true;
 
-        readyMenu?.SetActive(false);
-        playButton?.SetActive(false);
-        readyButton?.SetActive(false);
-        gameOverPanel?.SetActive(false);
+    readyMenu?.SetActive(false);
+    playButton?.SetActive(false);
+    readyButton?.SetActive(false);
+    gameOverPanel?.SetActive(false);
 
-        ActivatePlayer(player1, -1.5f);
-        ActivatePlayer(player2, 1.5f);
+    ActivatePlayer(player1, -1.5f);
+    ActivatePlayer(player2, 1.5f);
 
-        ResetScores();
-        spawner?.ResetSpawner();
+    // Re-enable player tags
+    if (player1Label != null)
+        player1Label.gameObject.SetActive(true);
+    if (player2Label != null)
+        player2Label.gameObject.SetActive(true);
 
-        SetInitialRoles();
-        PositionPlayersForNewDrive();
-        StartOffenseRound();
+    ResetScores();
+    spawner?.ResetSpawner();
 
-        Time.timeScale = 1f;
-    }
+    SetInitialRoles();
+    PositionPlayersForNewDrive();
+    StartOffenseRound();
 
+    Time.timeScale = 1f;
+}
 
     private void ActivatePlayer(Player p, float xPos)
     {
@@ -363,26 +423,39 @@ public class MultiplayerManager : MonoBehaviour
     }
 
     public void GameOver()
-    {
-        AudioManager.Instance?.PlaySplat();
+{
+    AudioManager.Instance?.PlaySplat();
 
-        PauseManager.GameIsActive = false;
+    PauseManager.GameIsActive = false;
 
-        if (player1 != null) player1.gameObject.SetActive(false);
-        if (player2 != null) player2.gameObject.SetActive(false);
+    // Hide players
+    if (player1 != null) player1.gameObject.SetActive(false);
+    if (player2 != null) player2.gameObject.SetActive(false);
 
-        if (goTeamScoreText != null)
-            goTeamScoreText.text = teamScore.ToString();
+    // Despawn football, goal posts, and all spawned enemies
+    if (spawner != null)
+        spawner.ResetSpawner();
 
-        if (goOpponentScoreText != null)
-            goOpponentScoreText.text = opponentScore.ToString();
+    // Hide player tags (labels above heads)
+    if (player1Label != null)
+        player1Label.gameObject.SetActive(false);
+    if (player2Label != null)
+        player2Label.gameObject.SetActive(false);
 
-        gameOverPanel?.SetActive(true);
-        playButton?.SetActive(true);
+    // Update game over scores
+    if (goTeamScoreText != null)
+        goTeamScoreText.text = teamScore.ToString();
 
-        Pause();
-        SelectPlayButton();
-    }
+    if (goOpponentScoreText != null)
+        goOpponentScoreText.text = opponentScore.ToString();
+
+    gameOverPanel?.SetActive(true);
+    playButton?.SetActive(true);
+
+    Pause();
+    SelectPlayButton();
+}
+
 
     // ============================================================
     //  ROUND FLOW (OFFENSE / DEFENSE)

@@ -28,14 +28,12 @@ A classic endless mode featuring Iowa-themed obstacles and power-ups:
 * **Silos:** stationary ground obstacles.
 * **Hot Air Balloons:** float up and down in a gentle oscillation.
 * **Spinning Turbines:** rotating hazards that require tight movement.
-* **Cyclone Birds**, **Goalposts**, and more.
 
 **Power-Ups & Collectibles:**
 
 * **Corn Magnet:** temporarily pulls corn kernels toward the player.
 * **Corn Kernels:** collectible items that **increase score**.
 * **Wind Boost:** grants brief **invincibility** and a forward surge.
-* **Helmets:** grant extra protection from collisions.
 
 **Difficulty:**
 
@@ -43,7 +41,7 @@ A classic endless mode featuring Iowa-themed obstacles and power-ups:
 * **Normal:** 4 lives
 * **Hard:** 3 lives + tornado mini-tornado attacks
 
-**Custom Mode** allows players to adjust obstacle spawn weights via sliders. Custom runs behave like Iowa Mode but **do not log data**.
+**Custom Mode** allows players to adjust obstacle spawn weights via sliders. Custom runs behave like Iowa Mode but **does not log data**.
 
 ### **Game Day Mode (Single Player Football Variant)**
 
