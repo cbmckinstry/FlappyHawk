@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 210947001238552181}
   - component: {fileID: 6760474571427567921}
   - component: {fileID: 1912653448125050812}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: MultiplayerFootball
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -141,4 +141,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e2866210e27f66c4c947759b6ba4e3e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MultiplayerFootball
-  moveSpeed: 4.5

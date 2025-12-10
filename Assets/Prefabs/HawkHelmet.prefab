@@ -12,9 +12,9 @@ GameObject:
   - component: {fileID: 5448731242664860112}
   - component: {fileID: 4734862514580580280}
   - component: {fileID: 1166681540491213623}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: HawkHelmet
-  m_TagString: Helmet
+  m_TagString: Collectible
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

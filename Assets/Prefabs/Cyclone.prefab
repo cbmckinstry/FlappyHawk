@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 9222495868742409939}
   - component: {fileID: 2665306816520032042}
   - component: {fileID: 4100410791137711274}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Cyclone
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -105,7 +105,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17b356762a9d17d4c86a70057e005d16, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CycloneBird
-  pipeSpeed: 4.5
+  scrollSpeed: 4.5
   bobAmplitude: 0.5
   bobFrequency: 2
   flapSprites:
@@ -159,7 +159,7 @@ GameObject:
   m_Component:
   - component: {fileID: 146473065871208661}
   - component: {fileID: 6802706156434335200}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: CycloneHelmet
   m_TagString: Untagged
   m_Icon: {fileID: 0}

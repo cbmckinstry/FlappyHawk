@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 4951076448809092034}
   - component: {fileID: 5068225121458297589}
   - component: {fileID: 2938145843919397778}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: WindBoost
   m_TagString: Collectible
   m_Icon: {fileID: 0}

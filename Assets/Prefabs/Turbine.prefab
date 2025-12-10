@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 7616581758252276784}
   - component: {fileID: 2561731234301987538}
   - component: {fileID: 5987460120183788623}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Blade
   m_TagString: Obstacle
   m_Icon: {fileID: 0}
@@ -286,7 +286,7 @@ GameObject:
   - component: {fileID: 2240845690103178427}
   - component: {fileID: 4120305516114899522}
   - component: {fileID: -6410042155522838748}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Turbine
   m_TagString: Untagged
   m_Icon: {fileID: 0}

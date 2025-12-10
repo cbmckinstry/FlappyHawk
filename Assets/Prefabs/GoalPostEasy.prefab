@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 2583680003342157614}
   - component: {fileID: 3196798804788536256}
   - component: {fileID: 2046315084648017347}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: GoalPostEasy
   m_TagString: GoalPost
   m_Icon: {fileID: 0}

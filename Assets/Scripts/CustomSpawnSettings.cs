@@ -21,5 +21,7 @@ public static class CustomSpawnSettings
     public static float helmetWeight = 0f;
     public static float windBoostWeight = 0.2f;
     public static float cornMagnetWeight = 0.2f;
+
+    public static float gravityFlipChance = 0.3f;
 }
 

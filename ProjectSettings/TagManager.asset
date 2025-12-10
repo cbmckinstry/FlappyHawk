@@ -11,7 +11,6 @@ TagManager:
   - Collectible
   - GoalPost
   - BallCarrier
-  - Helmet
   layers:
   - Default
   - TransparentFX
@@ -19,9 +18,9 @@ TagManager:
   - 
   - Water
   - UI
-  - 
-  - 
-  - 
+  - Background
+  - Ground
+  - Other
   - 
   - 
   - 
@@ -48,6 +47,15 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: Background
+    uniqueID: 2402996249
+    locked: 0
+  - name: Ground
+    uniqueID: 2848571573
+    locked: 0
+  - name: Enemies/Player/Obstacles/Collectables
+    uniqueID: 2268047569
     locked: 0
   m_RenderingLayers:
   - Default

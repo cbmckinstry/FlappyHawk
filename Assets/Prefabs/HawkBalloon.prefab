@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 5139142580612656824}
   - component: {fileID: 7772907453636008479}
   - component: {fileID: -1432758039680349045}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: HawkBalloon
   m_TagString: Obstacle
   m_Icon: {fileID: 0}
@@ -546,4 +546,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 585cd8f3e5a476c438942f3f8019b6f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Balloon
-  pipeSpeed: 4.5
+  moveSpeed: 4.5
+  destroyOffset: 2.5

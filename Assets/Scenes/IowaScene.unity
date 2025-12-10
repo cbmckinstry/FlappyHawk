@@ -2678,8 +2678,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 33e09aa462cf5d846b2b5f08dc5f80e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ControllerInputManager
-  dpadDeadzone: 0.5
-  stickDeadzone: 0.5
 --- !u!4 &753895581
 Transform:
   m_ObjectHideFlags: 0
@@ -5244,6 +5242,7 @@ MonoBehaviour:
   helmetWeight: 0
   windBoostWeight: 0.2
   cornMagnetWeight: 0.2
+  gravityFlipChance: 0.5
   defenseCarrierDelay: 3
   goalPostSpawnRate: 10
   maxGoalPostsPerDrive: 4
@@ -8394,6 +8393,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d574dbe1b6da45bf88dc22bb36a14c0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
+  playerID: 0
+  isMultiplayer: 0
   gravity: -9.8
   strength: 4.5
   flyingSprites:
@@ -9056,6 +9057,7 @@ MonoBehaviour:
   SettingsPanel: {fileID: 1289465068}
   ControlsPanel: {fileID: 1931118354}
   GameOverPanel: {fileID: 1062330304}
+  pauseResumeButton: {fileID: 0}
 --- !u!4 &2145955631
 Transform:
   m_ObjectHideFlags: 0

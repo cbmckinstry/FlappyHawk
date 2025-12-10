@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 8185035594417321678}
   - component: {fileID: 9003775766189804288}
   - component: {fileID: 3953903378996385297}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: CornMagnet
   m_TagString: Collectible
   m_Icon: {fileID: 0}

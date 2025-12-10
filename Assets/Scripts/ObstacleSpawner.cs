@@ -44,6 +44,9 @@ public class Spawner : MonoBehaviour
     [Range(0f, 1f)] public float windBoostWeight = 0.1f;
     [Range(0f, 1f)] public float cornMagnetWeight = 0.05f;
 
+    [Header("Hard Mode Wind Boost")]
+    [Range(0f, 1f)] public float gravityFlipChance = 0.3f;
+
     private bool isProbabilityBoostActive = false;
     private float originalObstacleSpawnChance;
     private float originalCornMagnetWeight;
@@ -109,6 +112,7 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
         helmetWeight      = CustomSpawnSettings.helmetWeight;
         windBoostWeight   = CustomSpawnSettings.windBoostWeight;
         cornMagnetWeight  = CustomSpawnSettings.cornMagnetWeight;
+        gravityFlipChance = CustomSpawnSettings.gravityFlipChance;
     }
 
 
@@ -489,6 +493,15 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
         GameObject obj = Instantiate(prefab, transform.position, Quaternion.identity);
         obj.transform.position += Vector3.up * Random.Range(minHeight, maxHeight);
+
+        WindBoost windBoost = obj.GetComponent<WindBoost>();
+        if (windBoost != null && GameManager.CurrentDifficulty == GameManager.Difficulty.Hard)
+        {
+            if (Random.value < gravityFlipChance)
+            {
+                windBoost.SetAsGravityFlip();
+            }
+        }
     }
 
     private GameObject SelectRandomObstacle()
@@ -575,6 +588,10 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
 
     offenseKickstartTimer = 0f;
     modeSwapDelayTimer = 0f;
+
+    foreach (var goalPost in activeGoalPosts)
+        if (goalPost != null)
+            Destroy(goalPost);
     activeGoalPosts.Clear();
 }
 
@@ -621,6 +638,28 @@ private const float DEFENSE_TO_OFFENSE_DELAY = 1f;
         var footballs = FindObjectsOfType<Football>();
         foreach (var football in footballs)
             Destroy(football.gameObject);
+
+        var goalPosts = FindObjectsOfType<GoalPost>();
+        foreach (var goalPost in goalPosts)
+            Destroy(goalPost.gameObject);
+
+        var helmets = FindObjectsOfType<Helmet>();
+        foreach (var helmet in helmets)
+            Destroy(helmet.gameObject);
+
+        var cornKernels = FindObjectsOfType<CornKernel>();
+        foreach (var kernel in cornKernels)
+            Destroy(kernel.gameObject);
+
+        var cornMagnets = FindObjectsOfType<CornMagnet>();
+        foreach (var magnet in cornMagnets)
+            Destroy(magnet.gameObject);
+
+        var windBoosts = FindObjectsOfType<WindBoost>();
+        foreach (var boost in windBoosts)
+            Destroy(boost.gameObject);
+
+        activeGoalPosts.Clear();
     }
 
     public int GetGameDayWavesCompleted() => gameDayWavesCompleted;

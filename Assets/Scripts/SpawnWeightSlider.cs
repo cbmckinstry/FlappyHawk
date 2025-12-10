@@ -11,7 +11,8 @@ public class CustomSpawnSlider : MonoBehaviour
         Balloon,
         Silo,
         Turbine,
-        CycloneBird
+        CycloneBird,
+        GravityFlipChance
     }
 
     [Header("Settings")]
@@ -73,6 +74,7 @@ public class CustomSpawnSlider : MonoBehaviour
             case WeightType.Silo:           return CustomSpawnSettings.siloWeight;
             case WeightType.Turbine:        return CustomSpawnSettings.turbineWeight;
             case WeightType.CycloneBird:    return CustomSpawnSettings.cycloneBirdWeight;
+            case WeightType.GravityFlipChance: return CustomSpawnSettings.gravityFlipChance;
         }
         return 0.5f;
     }
@@ -87,6 +89,7 @@ public class CustomSpawnSlider : MonoBehaviour
             case WeightType.Silo:           CustomSpawnSettings.siloWeight         = value; break;
             case WeightType.Turbine:        CustomSpawnSettings.turbineWeight      = value; break;
             case WeightType.CycloneBird:    CustomSpawnSettings.cycloneBirdWeight  = value; break;
+            case WeightType.GravityFlipChance: CustomSpawnSettings.gravityFlipChance = value; break;
         }
     }
 

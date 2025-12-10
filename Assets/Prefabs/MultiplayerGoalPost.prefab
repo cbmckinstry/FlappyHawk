@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 8331494939331540524}
   - component: {fileID: 7447857525359904315}
   - component: {fileID: -5601584341678758621}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: MultiplayerGoalPost
   m_TagString: GoalPost
   m_Icon: {fileID: 0}
@@ -150,4 +150,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 82fec58bd56e2174c86f8b8502670af2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MultiplayerGoalPost
-  moveSpeed: 4.5

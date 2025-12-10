@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4626762397530839261}
   - component: {fileID: 3922976504756000875}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Football
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -100,7 +100,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5720747070610722778}
   - component: {fileID: 3185651850528656363}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: HelemtDisplay
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -192,7 +192,7 @@ GameObject:
   - component: {fileID: 1758360655436566822}
   - component: {fileID: 6573734670238923386}
   - component: {fileID: 2362049372058698308}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: MultiplayerBallCarrier
   m_TagString: BallCarrier
   m_Icon: {fileID: 0}

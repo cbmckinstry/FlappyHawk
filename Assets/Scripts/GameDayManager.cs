@@ -39,9 +39,6 @@ public class GameDayManager : MonoBehaviour
     public float goalPostSpawnX = 12f;
     public float defenseRoundDuration = 10f;
 
-    // NEW: tag used for goal posts (set this on your goal post prefabs)
-    [SerializeField] private string goalPostTag = "GoalPost";
-
     public GameManager.GameDayDifficulty CurrentGameDayDifficulty { get; private set; } =
         GameManager.GameDayDifficulty.College;
 
@@ -109,7 +106,7 @@ public class GameDayManager : MonoBehaviour
         SelectPlayButton();
     }
 
-    //  FIXED – this was REMOVED previously; adding it back.
+    //  FIXED � this was REMOVED previously; adding it back.
     private void Update()
     {
         if (IsGameActive())
@@ -186,42 +183,65 @@ public class GameDayManager : MonoBehaviour
     }
 
     public void StartDefenseRound()
+{
+    AudioManager.Instance?.PlayWhistle();
+
+    // Already there? Do nothing.
+    if (inDefenseRound) return;
+
+    // OFFENSE -> DEFENSE
+    inDefenseRound = true;
+    isSpawningPaused = false;
+
+    // 1) Remove any footballs so player no longer has the ball
+    var balls = FindObjectsOfType<Football>();
+    foreach (var fb in balls)
     {
-        AudioManager.Instance?.PlayWhistle();
-
-        if (inDefenseRound) return;
-
-        inDefenseRound = true;
-        isSpawningPaused = false;
-
-        StartCoroutine(DefenseRoundTimer());
-
-        UpdateModeDisplay(true);
+        if (fb != null)
+            Destroy(fb.gameObject);
     }
 
-    public void EndDefenseRound(bool playerWon)
+    // 2) Let spawner know there is no active ball this drive
+    spawner?.ResetGameDayBall();
+
+    // 3) DO NOT clear enemy birds here – they stay on screen
+
+    StartCoroutine(DefenseRoundTimer());
+    UpdateModeDisplay(true);
+}
+
+public void EndDefenseRound(bool playerWon)
+{
+    // DEFENSE -> OFFENSE
+    inDefenseRound = false;
+    ballCarrierSpawning = false;
+    isSpawningPaused = false;
+
+    UpdateModeDisplay(true);
+
+    if (playerWon)
     {
-        inDefenseRound = false;
-        ballCarrierSpawning = false;
-        isSpawningPaused = false;
-
-        UpdateModeDisplay(true);
-
-        if (playerWon)
-            defenseRoundsWon++;
-        else
-        {
-            AudioManager.Instance?.PlayEnemyScore();
-
-            defenseRoundsFailed++;
-
-            int pointsScored = UnityEngine.Random.value < 0.7f ? 3 : 7;
-            enemyScore += pointsScored;
-            UpdateOpponentScoreUI(enemyScore);
-        }
-
-        spawner?.ResetGameDayBall();
+        defenseRoundsWon++;
     }
+    else
+    {
+        AudioManager.Instance?.PlayEnemyScore();
+
+        defenseRoundsFailed++;
+
+        int pointsScored = UnityEngine.Random.value < 0.7f ? 3 : 7;
+        enemyScore += pointsScored;
+        UpdateOpponentScoreUI(enemyScore);
+    }
+
+    // No ball on field after defense
+    spawner?.ResetGameDayBall();
+
+    // IMPORTANT:
+    // Do NOT call ClearAllGameDayActors() here.
+    // Birds that survived defense remain flying.
+}
+
 
     private IEnumerator DefenseRoundTimer()
     {
@@ -328,10 +348,6 @@ public class GameDayManager : MonoBehaviour
 
         LogGameDayRun();
 
-        // NEW: kill all goal posts when game is over
-        DestroyAllGoalPosts();
-        DestroyAllHelmets();
-
         if (player != null)
             player.gameObject.SetActive(false);
 
@@ -344,6 +360,7 @@ public class GameDayManager : MonoBehaviour
         int highScore = LoadHighScore(CurrentGameDayDifficulty.ToString());
         if (goHighScoreText != null)
             goHighScoreText.text = highScore.ToString();
+
 
         gameOver?.SetActive(true);
         playButton.SetActive(true);
@@ -377,32 +394,12 @@ public class GameDayManager : MonoBehaviour
         ballCarrierSpawning = false;
         isSpawningPaused = false;
 
-        // NEW: also clear any goal posts on death/reset
-        DestroyAllGoalPosts();
-        DestroyAllHelmets();
-
         spawner?.ClearAllGameDayActors();
         spawner?.ResetSpawner();
     }
 
-    // -------------------- NEW: Goal Post Cleanup --------------------
-    private void DestroyAllGoalPosts()
-    {
-        if (string.IsNullOrEmpty(goalPostTag)) return;
 
-        GameObject[] posts = GameObject.FindGameObjectsWithTag(goalPostTag);
-        foreach (GameObject post in posts)
-        {
-            Destroy(post);
-        }
-    }
-    private void DestroyAllHelmets()
-{
-    GameObject[] helmets = GameObject.FindGameObjectsWithTag("Helmet");
-    foreach (GameObject h in helmets)
-        Destroy(h);
-}
-
+    // -------------------- Logging --------------------
     private string GetFinalizedPlayerName()
     {
         if (playerNameInput == null) return "Unknown";
@@ -507,4 +504,5 @@ public class GameDayManager : MonoBehaviour
             return 0;
         }
     }
+
 }

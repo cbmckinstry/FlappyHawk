@@ -18,6 +18,8 @@ public class Player : MonoBehaviour
     private Vector3 direction;
     public float gravity = -9.8f;
     public float strength = 1f;
+    private float baseGravity;
+
 
     private SpriteRenderer spriteRenderer;
     public Sprite[] flyingSprites;
@@ -46,6 +48,9 @@ public class Player : MonoBehaviour
 
     private float boostVelocityX = 0f;
     private float boostTimeRemaining = 0f;
+
+    private bool isGravityFlipped = false;
+    private float gravityFlipTimeRemaining = 0f;
 
     private bool isInvulnerable = false;
     private Color originalColor = Color.white;
@@ -76,6 +81,8 @@ public class Player : MonoBehaviour
         // AUTO-DETECT MULTIPLAYER BY SCENE
         string sceneName = SceneManager.GetActiveScene().name;
         isMultiplayer = (sceneName == "MultiplayerScene");
+
+        baseGravity = gravity;
 
         spriteRenderer = GetComponent<SpriteRenderer>();
         originalColor = spriteRenderer != null ? spriteRenderer.color : Color.white;
@@ -126,6 +133,8 @@ public class Player : MonoBehaviour
         isKnockedBack = false;
         boostVelocityX = 0f;
         boostTimeRemaining = 0f;
+
+        ResetGravityFlip();
 
         if (helmetDisplay != null)
             helmetDisplay.SetActive(false);
@@ -226,7 +235,7 @@ public class Player : MonoBehaviour
             if (transform.position.y <= screenTop - 1.5f)
             {
                 AudioManager.Instance?.PlayWingFlap();
-                direction = Vector3.up * strength;
+                direction = (isGravityFlipped ? Vector3.down : Vector3.up) * strength;
             }
         }
 
@@ -248,6 +257,31 @@ public class Player : MonoBehaviour
                 boostTimeRemaining -= Time.deltaTime;
             else
                 boostVelocityX = 0f;
+        }
+
+        // Handle gravity flip expiration
+        if (isGravityFlipped)
+        {
+            bool isOffScreen =
+                (transform.position.x < screenLeft ||
+                 transform.position.x > screenRight ||
+                 transform.position.y < screenBottom ||
+                 transform.position.y > screenTop);
+
+            if (isOffScreen)
+            {
+                isGravityFlipped = false;
+                gravity = -gravity;
+            }
+            else
+            {
+                gravityFlipTimeRemaining -= Time.deltaTime;
+                if (gravityFlipTimeRemaining <= 0f)
+                {
+                    isGravityFlipped = false;
+                    gravity = -gravity;
+                }
+            }
         }
 
         // SINGLE-PLAYER-ONLY LOGIC: magnet + off-screen defense trigger
@@ -353,7 +387,14 @@ public class Player : MonoBehaviour
         // ========================
         if (other.gameObject.CompareTag("Obstacle"))
         {
-            TakeDamage();
+            if (GameManager.CurrentGameMode == GameManager.GameMode.Iowa && other.GetComponent<Tornado>() != null)
+            {
+                ApplyTornadoEffect();
+            }
+            else
+            {
+                TakeDamage();
+            }
         }
         else if (other.gameObject.CompareTag("Ground"))
         {
@@ -453,6 +494,12 @@ public class Player : MonoBehaviour
         knockbackVelocity = Vector3.zero;
     }
 
+    private void ApplyTornadoEffect()
+    {
+        float verticalVelocity = Random.value < 0.5f ? 10f : -10f;
+        direction.y = verticalVelocity;
+    }
+
     private void HandleCollectible(GameObject collectible)
     {
         ICollectible col = collectible.GetComponent<ICollectible>();
@@ -504,6 +551,25 @@ public class Player : MonoBehaviour
         boostTimeRemaining += distance / speed;
         ApplyBoostInvulnerability();
     }
+
+ public void ApplyGravityFlip(float duration)
+{
+    isGravityFlipped = true;
+    gravityFlipTimeRemaining = duration;
+    gravity = -gravity;
+}
+
+
+    public void ResetGravityFlip()
+{
+    // Force gravity back to its original downwards value
+    gravity = baseGravity;
+
+    // Clear flip state + timer so Update() doesn't flip it again
+    isGravityFlipped = false;
+    gravityFlipTimeRemaining = 0f;
+}
+
 
     // ============================================================
     //  INVULNERABILITY / COLOR EFFECTS
@@ -650,7 +716,14 @@ public class Player : MonoBehaviour
         }
         else
         {
-            // Original “any kernel at same X” auto-collect behavior
+            if (magnetDurationRemaining <= MAGNET_FADE_START_TIME && magnetSpriteRenderer != null)
+            {
+                float alpha = magnetDurationRemaining / MAGNET_FADE_START_TIME;
+                Color magnetColor = magnetSpriteRenderer.color;
+                magnetColor.a = alpha;
+                magnetSpriteRenderer.color = magnetColor;
+            }
+
             AutoCollectCornKernels();
         }
     }

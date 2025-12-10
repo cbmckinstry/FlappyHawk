@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 3170866239136234379}
   - component: {fileID: 3993130476024225601}
   - component: {fileID: -8200634506408885142}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Silo
   m_TagString: Obstacle
   m_Icon: {fileID: 0}

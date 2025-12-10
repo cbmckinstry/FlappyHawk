@@ -2263,9 +2263,9 @@ GameObject:
   m_Component:
   - component: {fileID: 309572766}
   - component: {fileID: 309572767}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: HelmetDisplay
-  m_TagString: Helmet
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3710,7 +3710,7 @@ MonoBehaviour:
   m_Intensity: 1
   m_LightVolumeIntensity: 1
   m_LightVolumeEnabled: 0
-  m_ApplyToSortingLayers: 00000000
+  m_ApplyToSortingLayers: 00000000d1a82f87b5c0c9a919d03a8f
   m_LightCookieSprite: {fileID: 0}
   m_DeprecatedPointLightCookieSprite: {fileID: 0}
   m_LightOrder: 0
@@ -5468,7 +5468,6 @@ MonoBehaviour:
   proSpawnRate: 0.9
   goalPostSpawnX: 0
   defenseRoundDuration: 10
-  goalPostTag: GoalPost
 --- !u!1 &1083358946
 GameObject:
   m_ObjectHideFlags: 0
@@ -5610,7 +5609,7 @@ Transform:
   m_GameObject: {fileID: 1139996080}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 12, y: 0, z: 0}
+  m_LocalPosition: {x: 12, y: 0, z: -1}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5656,6 +5655,7 @@ MonoBehaviour:
   helmetWeight: 0.3
   windBoostWeight: 0.1
   cornMagnetWeight: 0.05
+  gravityFlipChance: 0.3
   defenseCarrierDelay: 5
   goalPostSpawnRate: 10
   maxGoalPostsPerDrive: 4
@@ -8776,7 +8776,7 @@ GameObject:
   - component: {fileID: 1979433715}
   - component: {fileID: 1979433714}
   - component: {fileID: 1979433718}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Player
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -8942,7 +8942,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: af6f8f98e8f472c47bdaf05ab1c13a62, type: 3}
   animationSpeed: 0.15
   maxPlayerHealth: 1
-  maxHelmetDurability: 3
+  maxHelmetDurability: 1
 --- !u!1 &2017210504
 GameObject:
   m_ObjectHideFlags: 0
