@@ -11,6 +11,7 @@ TagManager:
   - Collectible
   - GoalPost
   - BallCarrier
+  - Helmet
   layers:
   - Default
   - TransparentFX

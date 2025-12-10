@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 1166681540491213623}
   m_Layer: 0
   m_Name: HawkHelmet
-  m_TagString: Collectible
+  m_TagString: Helmet
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

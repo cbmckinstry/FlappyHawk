@@ -39,6 +39,9 @@ public class GameDayManager : MonoBehaviour
     public float goalPostSpawnX = 12f;
     public float defenseRoundDuration = 10f;
 
+    // NEW: tag used for goal posts (set this on your goal post prefabs)
+    [SerializeField] private string goalPostTag = "GoalPost";
+
     public GameManager.GameDayDifficulty CurrentGameDayDifficulty { get; private set; } =
         GameManager.GameDayDifficulty.College;
 
@@ -106,7 +109,7 @@ public class GameDayManager : MonoBehaviour
         SelectPlayButton();
     }
 
-    //  FIXED � this was REMOVED previously; adding it back.
+    //  FIXED – this was REMOVED previously; adding it back.
     private void Update()
     {
         if (IsGameActive())
@@ -206,7 +209,6 @@ public class GameDayManager : MonoBehaviour
 
         if (playerWon)
             defenseRoundsWon++;
-
         else
         {
             AudioManager.Instance?.PlayEnemyScore();
@@ -326,6 +328,10 @@ public class GameDayManager : MonoBehaviour
 
         LogGameDayRun();
 
+        // NEW: kill all goal posts when game is over
+        DestroyAllGoalPosts();
+        DestroyAllHelmets();
+
         if (player != null)
             player.gameObject.SetActive(false);
 
@@ -338,7 +344,6 @@ public class GameDayManager : MonoBehaviour
         int highScore = LoadHighScore(CurrentGameDayDifficulty.ToString());
         if (goHighScoreText != null)
             goHighScoreText.text = highScore.ToString();
-
 
         gameOver?.SetActive(true);
         playButton.SetActive(true);
@@ -372,12 +377,32 @@ public class GameDayManager : MonoBehaviour
         ballCarrierSpawning = false;
         isSpawningPaused = false;
 
+        // NEW: also clear any goal posts on death/reset
+        DestroyAllGoalPosts();
+        DestroyAllHelmets();
+
         spawner?.ClearAllGameDayActors();
         spawner?.ResetSpawner();
     }
 
+    // -------------------- NEW: Goal Post Cleanup --------------------
+    private void DestroyAllGoalPosts()
+    {
+        if (string.IsNullOrEmpty(goalPostTag)) return;
 
-    // -------------------- Logging --------------------
+        GameObject[] posts = GameObject.FindGameObjectsWithTag(goalPostTag);
+        foreach (GameObject post in posts)
+        {
+            Destroy(post);
+        }
+    }
+    private void DestroyAllHelmets()
+{
+    GameObject[] helmets = GameObject.FindGameObjectsWithTag("Helmet");
+    foreach (GameObject h in helmets)
+        Destroy(h);
+}
+
     private string GetFinalizedPlayerName()
     {
         if (playerNameInput == null) return "Unknown";
@@ -482,5 +507,4 @@ public class GameDayManager : MonoBehaviour
             return 0;
         }
     }
-
 }

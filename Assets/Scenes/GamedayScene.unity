@@ -2265,7 +2265,7 @@ GameObject:
   - component: {fileID: 309572767}
   m_Layer: 0
   m_Name: HelmetDisplay
-  m_TagString: Untagged
+  m_TagString: Helmet
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -5468,6 +5468,7 @@ MonoBehaviour:
   proSpawnRate: 0.9
   goalPostSpawnX: 0
   defenseRoundDuration: 10
+  goalPostTag: GoalPost
 --- !u!1 &1083358946
 GameObject:
   m_ObjectHideFlags: 0
