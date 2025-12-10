@@ -1,169 +1,179 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.EventSystems;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
 public class ControllerInputManager : MonoBehaviour
 {
-    private static ControllerInputManager _instance;
-    
-    public static ControllerInputManager Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                _instance = FindFirstObjectByType<ControllerInputManager>();
-                if (_instance == null)
-                {
-                    GameObject obj = new GameObject("ControllerInputManager");
-                    _instance = obj.AddComponent<ControllerInputManager>();
-                }
-            }
-            return _instance;
-        }
-    }
+    public static ControllerInputManager Instance { get; private set; }
 
-    [SerializeField] private float dpadDeadzone = 0.5f;
-    [SerializeField] private float stickDeadzone = 0.5f;
-
-    private Gamepad currentGamepad;
-    private float stickInputCooldown = 0f;
-    private const float STICK_INPUT_DELAY = 0.3f;
+    // Two explicitly assigned controllers
+    private Gamepad p1Controller;
+    private Gamepad p2Controller;
 
     private void Awake()
     {
-        if (_instance == null)
-        {
-            _instance = this;
-            DontDestroyOnLoad(gameObject);
-            SceneManager.sceneLoaded += OnSceneLoaded;
-        }
-        else if (_instance != this)
+        if (Instance != null)
         {
             Destroy(gameObject);
-        }
-    }
-
-    private void OnDestroy()
-    {
-        if (_instance == this)
-        {
-            _instance = null;
-            SceneManager.sceneLoaded -= OnSceneLoaded;
-        }
-    }
-
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        if (_instance == null)
-            _instance = this;
-    }
-
-    private void Update()
-    {
-        currentGamepad = Gamepad.current;
-        if (stickInputCooldown > 0)
-            stickInputCooldown -= Time.deltaTime;
-        
-        HandleUISubmit();
-    }
-
-    private void HandleUISubmit()
-    {
-        if (currentGamepad == null)
             return;
+        }
 
-        if (currentGamepad.buttonSouth.wasPressedThisFrame)
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+
+        AssignControllers();
+    }
+
+    private void AssignControllers()
+    {
+        var pads = Gamepad.all;
+
+        if (pads.Count == 0)
         {
-            if (EventSystem.current == null)
-                return;
+            p1Controller = null;
+            p2Controller = null;
+            return;
+        }
 
-            GameObject selectedObject = EventSystem.current.currentSelectedGameObject;
+        // Always assign first controller to Player 1
+        p1Controller = pads[0];
 
-            if (selectedObject == null || !selectedObject.scene.isLoaded)
-            {
-                SelectFirstButton();
-                selectedObject = EventSystem.current.currentSelectedGameObject;
-            }
+        // Assign next controller to Player 2 (if exists)
+        p2Controller = pads.Count > 1 ? pads[1] : null;
 
-            if (selectedObject != null && selectedObject.scene.isLoaded)
-            {
-                ExecuteEvents.Execute(selectedObject, new BaseEventData(EventSystem.current), ExecuteEvents.submitHandler);
-            }
+        Debug.Log($"[ControllerInputManager] P1={p1Controller} P2={p2Controller}");
+    }
+
+
+    // Call this when scene loads
+    public void RecheckControllers() => AssignControllers();
+
+    public bool HasTwoControllers()
+    {
+        return p1Controller != null && p2Controller != null;
+    }
+
+    // ============================
+    // INPUT — FLAP
+    // ============================
+    public bool GetFlap(Player.PlayerID id)
+{
+    // ============================
+    // KEYBOARD INPUT
+    // ============================
+    if (Keyboard.current != null)
+    {
+        if (id == Player.PlayerID.Player1 &&
+            Keyboard.current.wKey.wasPressedThisFrame)
+        {
+            return true;    // P1 flap = W
+        }
+
+        if (id == Player.PlayerID.Player2 &&
+            Keyboard.current.upArrowKey.wasPressedThisFrame)
+        {
+            return true;    // P2 flap = Up Arrow
         }
     }
 
-    private void SelectFirstButton()
+    // ============================
+    // CONTROLLER INPUT
+    // ============================
+    var pad = MultiplayerManager.Instance.GetControllerForPlayer(id);
+    return pad != null && pad.buttonSouth.wasPressedThisFrame;
+}
+
+public bool GetDrop(Player.PlayerID id)
+{
+    // ============================
+    // KEYBOARD INPUT
+    // ============================
+    if (Keyboard.current != null)
     {
-        Button[] buttons = FindObjectsByType<Button>(FindObjectsSortMode.None);
-        
-        foreach (Button button in buttons)
+        if (id == Player.PlayerID.Player1 &&
+            Keyboard.current.sKey.wasPressedThisFrame)
         {
-            if (button != null && button.gameObject != null && button.gameObject.scene.isLoaded && button.interactable)
-            {
-                EventSystem.current?.SetSelectedGameObject(button.gameObject);
-                break;
-            }
+            return true;    // P1 drop = S
+        }
+
+        if (id == Player.PlayerID.Player2 &&
+            Keyboard.current.downArrowKey.wasPressedThisFrame)
+        {
+            return true;    // P2 drop = Down Arrow
         }
     }
 
-    public bool IsControllerConnected()
+    // ============================
+    // CONTROLLER INPUT (right shoulder)
+    // ============================
+    var pad = MultiplayerManager.Instance.GetControllerForPlayer(id);
+    return pad != null && pad.rightShoulder.wasPressedThisFrame;
+}
+
+
+
+
+    // ============================
+    // Optional Pause input
+    // ============================
+    public bool GetPause(Player.PlayerID id)
     {
-        return Gamepad.current != null;
+        if (id == Player.PlayerID.Player1 && p1Controller != null)
+            return p1Controller.startButton.wasPressedThisFrame;
+
+        if (id == Player.PlayerID.Player2 && p2Controller != null)
+            return p2Controller.startButton.wasPressedThisFrame;
+
+        return false;
     }
 
-    public Vector2 GetMenuInputDPad()
+    // "Are there controllers connected?"
+    public bool HasAnyControllers()
     {
-        if (currentGamepad == null) return Vector2.zero;
-
-        Vector2 input = Vector2.zero;
-        if (currentGamepad.dpad.up.isPressed) input.y = 1f;
-        if (currentGamepad.dpad.down.isPressed) input.y = -1f;
-        if (currentGamepad.dpad.left.isPressed) input.x = -1f;
-        if (currentGamepad.dpad.right.isPressed) input.x = 1f;
-
-        return input;
+        return Gamepad.all.Count > 0;
     }
 
-    public Vector2 GetMenuInputLeftStick()
+    // Vertical menu navigation: -1, 0, +1
+    public float GetMenuVertical()
     {
-        if (currentGamepad == null) return Vector2.zero;
+        if (Gamepad.all.Count == 0)
+            return 0;
 
-        Vector2 stick = currentGamepad.leftStick.value;
+        var g = Gamepad.all[0]; // Use first controller for menu navigation
 
-        if (stick.magnitude > stickDeadzone && stickInputCooldown <= 0)
-        {
-            stickInputCooldown = STICK_INPUT_DELAY;
-            return new Vector2(Mathf.Sign(stick.x), Mathf.Sign(stick.y));
-        }
+        if (g.dpad.up.wasPressedThisFrame) return 1;
+        if (g.dpad.down.wasPressedThisFrame) return -1;
 
-        return Vector2.zero;
+        if (g.leftStick.up.wasPressedThisFrame) return 1;
+        if (g.leftStick.down.wasPressedThisFrame) return -1;
+
+        return 0;
+    }
+    public float GetMenuHorizontal()
+    {
+        if (Gamepad.all.Count == 0)
+            return 0;
+
+        var g = Gamepad.all[0];
+
+        if (g.dpad.left.wasPressedThisFrame) return -1;
+        if (g.dpad.right.wasPressedThisFrame) return 1;
+
+        if (g.leftStick.left.wasPressedThisFrame) return -1;
+        if (g.leftStick.right.wasPressedThisFrame) return 1;
+
+        return 0;
     }
 
-    public bool IsBallDropPressed()
+
+    // Submit (A / X button)
+    public bool GetMenuSubmit()
     {
-        if (currentGamepad == null) return false;
-        return currentGamepad.leftShoulder.wasPressedThisFrame || 
-               currentGamepad.rightShoulder.wasPressedThisFrame;
+        if (Gamepad.all.Count == 0)
+            return false;
+
+        var g = Gamepad.all[0];
+
+        return g.buttonSouth.wasPressedThisFrame; // A / X
     }
 
-    public bool IsFlappressed()
-    {
-        if (currentGamepad == null) return false;
-        return currentGamepad.buttonSouth.wasPressedThisFrame;
-    }
-
-    public bool IsPausePressed()
-    {
-        if (currentGamepad == null) return false;
-        return currentGamepad.startButton.wasPressedThisFrame;
-    }
-
-    public bool IsSelectPressed()
-    {
-        if (currentGamepad == null) return false;
-        return currentGamepad.selectButton.wasPressedThisFrame;
-    }
 }

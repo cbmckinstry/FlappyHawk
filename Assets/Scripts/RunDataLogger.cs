@@ -83,6 +83,13 @@ public static class RunDataLogger
 
     private static void WriteLeaderboardCSV(RunLogData data)
     {
+        // Skip runs with 0 leaderboard score
+        if ((data.gameMode.Contains("GameDay") && (data.playerScore - data.enemyScore) == 0) ||
+            (!data.gameMode.Contains("GameDay") && data.score == 0))
+        {
+            return; // don't write zero-score runs
+        }
+
         try
         {
             bool newFile = !File.Exists(LeaderboardFilePath);
@@ -136,6 +143,11 @@ public static class RunDataLogger
         if (s.Contains(",") || s.Contains("\"") || s.Contains("\n"))
             return $"\"{s.Replace("\"", "\"\"")}\"";
         return s;
+    }
+
+    public static string GetLogFolder()
+    {
+        return LogsFolder;
     }
 }
 

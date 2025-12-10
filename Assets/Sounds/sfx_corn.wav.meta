@@ -1,5 +1,9 @@
 fileFormatVersion: 2
-guid: b99034327ff984e4f9fe12e55a6fbbc0
+<<<<<<<< HEAD:Assets/Sounds/sfx_corn.wav.meta
+guid: 6fd8e78fb4cace34c96676560c0c6501
+========
+guid: fcf73d2082b4db24590b06183bf38a44
+>>>>>>>> origin/Jesse:Assets/Sounds/music_gameday.mp3.meta
 AudioImporter:
   externalObjects: {}
   serializedVersion: 8
@@ -11,9 +15,9 @@ AudioImporter:
     compressionFormat: 1
     quality: 1
     conversionMode: 0
-    preloadAudioData: 1
+    preloadAudioData: 0
   platformSettingOverrides: {}
-  forceToMono: 1
+  forceToMono: 0
   normalize: 1
   loadInBackground: 0
   ambisonic: 0

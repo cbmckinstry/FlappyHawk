@@ -1,9 +1,20 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using System.Collections;
 
 public class Player : MonoBehaviour
 {
+    // ===========================
+    // MULTIPLAYER FIELDS
+    // ===========================
+    public enum PlayerID { Player1, Player2 }
+    public PlayerID playerID;
+    public bool isMultiplayer = false;   // will be overridden automatically by scene
+
+    // ===========================
+    // SHARED FIELDS
+    // ===========================
     private Vector3 direction;
     public float gravity = -9.8f;
     public float strength = 1f;
@@ -36,10 +47,12 @@ public class Player : MonoBehaviour
     private float boostVelocityX = 0f;
     private float boostTimeRemaining = 0f;
 
+    private bool isGravityFlipped = false;
+    private float gravityFlipTimeRemaining = 0f;
+
     private bool isInvulnerable = false;
     private Color originalColor = Color.white;
     private const float INVULNERABILITY_DURATION = 2.0f;
-    private const float COLOR_TRANSITION_TIME = 0.5f;
     private Coroutine colorAnimationCoroutine;
 
     private float magnetDurationRemaining = 0f;
@@ -47,6 +60,9 @@ public class Player : MonoBehaviour
     private bool isMagnetActive = false;
     private const float MAGNET_FADE_START_TIME = 10f;
 
+    // ============================================================
+    //  ANIMATION
+    // ============================================================
     private void AnimateSprite()
     {
         spriteIndex++;
@@ -55,9 +71,18 @@ public class Player : MonoBehaviour
         spriteRenderer.sprite = flyingSprites[spriteIndex];
     }
 
+    // ============================================================
+    //  AWAKE
+    // ============================================================
     private void Awake()
     {
+        // AUTO-DETECT MULTIPLAYER BY SCENE
+        string sceneName = SceneManager.GetActiveScene().name;
+        isMultiplayer = (sceneName == "MultiplayerScene");
+
         spriteRenderer = GetComponent<SpriteRenderer>();
+        originalColor = spriteRenderer != null ? spriteRenderer.color : Color.white;
+
         helmetDisplay = transform.Find("HelmetDisplay")?.gameObject;
         if (helmetDisplay != null)
             helmetDisplay.SetActive(false);
@@ -72,7 +97,9 @@ public class Player : MonoBehaviour
         if (Camera.main != null)
         {
             Vector3 bottomLeft = Camera.main.ScreenToWorldPoint(Vector3.zero);
-            Vector3 topRight = Camera.main.ScreenToWorldPoint(new Vector3(Camera.main.pixelWidth, Camera.main.pixelHeight));
+            Vector3 topRight = Camera.main.ScreenToWorldPoint(
+                new Vector3(Camera.main.pixelWidth, Camera.main.pixelHeight));
+
             screenLeft = bottomLeft.x - 1f;
             screenRight = topRight.x + 1f;
             screenBottom = bottomLeft.y - 1f;
@@ -89,48 +116,126 @@ public class Player : MonoBehaviour
         InvokeRepeating(nameof(AnimateSprite), animationSpeed, animationSpeed);
     }
 
+    // ============================================================
+    //  ONENABLE
+    // ============================================================
     private void OnEnable()
     {
-        Vector3 position = transform.position;
-        position.x = 0f;
-        position.y = 0f;
-        transform.position = position;
         direction = Vector3.zero;
-        
-        if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
-            maxPlayerHealth = 1;
-        else
-            maxPlayerHealth = 5;
-            
-        playerHealth = maxPlayerHealth;
         helmetDurability = 0;
         hasHelmet = false;
         hasLeftScreen = false;
+        isInvulnerable = false;
+        isKnockedBack = false;
+        boostVelocityX = 0f;
+        boostTimeRemaining = 0f;
+
         if (helmetDisplay != null)
             helmetDisplay.SetActive(false);
 
-        isMagnetActive = false;
-        magnetDurationRemaining = 0f;
         if (cornMagnetDisplay != null)
-            cornMagnetDisplay.SetActive(false);
-    }
-
-    private void Update()
-    {
-        bool flap =
-            (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) ||
-            (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) ||
-            (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
-
-        if (flap && !isKnockedBack)
         {
-            if (transform.position.y <= screenTop-1.5f)
+            cornMagnetDisplay.SetActive(false);
+            if (magnetSpriteRenderer != null)
             {
-                AudioManager.Instance?.PlayWingFlap();
-                direction = Vector3.up * strength;
+                var c = magnetSpriteRenderer.color;
+                c.a = 1f;
+                magnetSpriteRenderer.color = c;
             }
         }
 
+        if (colorAnimationCoroutine != null)
+    {
+        StopCoroutine(colorAnimationCoroutine);
+        colorAnimationCoroutine = null;
+    }
+
+    isInvulnerable = false;
+
+    if (spriteRenderer != null)
+        spriteRenderer.color = originalColor;
+
+        // SINGLE-PLAYER SETUP
+        if (!isMultiplayer)
+        {
+            // Reset position to center
+            Vector3 position = transform.position;
+            position.x = 0f;
+            position.y = 0f;
+            transform.position = position;
+
+            // Health rules from your original single-player
+            if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
+                maxPlayerHealth = 1;
+            else
+                maxPlayerHealth = 5;
+
+            playerHealth = maxPlayerHealth;
+            magnetDurationRemaining = 0f;
+            magnetTotalDuration = 0f;
+            isMagnetActive = false;
+        }
+        else
+        {
+            // MULTIPLAYER: health isn't really used; MP logic handles deaths via MultiplayerManager
+            // Still keep something sane
+            maxPlayerHealth = 1;
+            playerHealth = 1;
+        }
+    }
+
+    // ============================================================
+    //  UPDATE
+    // ============================================================
+    private void Update()
+    {
+        if (Time.timeScale == 0f || !PauseManager.GameIsActive)
+            return;
+
+        bool flap = false;
+        bool drop = false;
+
+        // ===========================================
+        // MULTIPLAYER INPUT
+        // ===========================================
+        if (isMultiplayer)
+        {
+            var input = ControllerInputManager.Instance;
+
+            // Controller inputs ONLY
+            flap = input.GetFlap(playerID);
+            drop = input.GetDrop(playerID);
+
+            if (drop)
+                MultiplayerManager.Instance?.HandleFootballDrop(this);
+        }
+
+        // ===========================================
+        // SINGLE PLAYER INPUT
+        // ===========================================
+        else
+        {
+            flap =
+                (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) ||
+                (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) ||
+                (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
+        }
+
+        // ===========================================
+        // APPLY FLAP
+        // ===========================================
+        if (flap && !isKnockedBack)
+        {
+            if (transform.position.y <= screenTop - 1.5f)
+            {
+                AudioManager.Instance?.PlayWingFlap();
+                direction = (isGravityFlipped ? Vector3.down : Vector3.up) * strength;
+            }
+        }
+
+        // ===========================================
+        // MOVEMENT + BOOSTS
+        // ===========================================
         if (isKnockedBack)
         {
             transform.position += knockbackVelocity * Time.deltaTime;
@@ -138,26 +243,59 @@ public class Player : MonoBehaviour
         else
         {
             direction.y += gravity * Time.deltaTime;
-            Vector3 movementThisFrame = direction * Time.deltaTime;
-            movementThisFrame.x += boostVelocityX * Time.deltaTime;
-            transform.position += movementThisFrame;
-            
+            Vector3 movement = direction * Time.deltaTime;
+            movement.x += boostVelocityX * Time.deltaTime;
+            transform.position += movement;
+
             if (boostTimeRemaining > 0f)
                 boostTimeRemaining -= Time.deltaTime;
             else
                 boostVelocityX = 0f;
         }
 
-        UpdateCornMagnet();
-        CheckOffScreenAndTriggerDefense();
+        // Handle gravity flip expiration
+        if (isGravityFlipped)
+        {
+            bool isOffScreen =
+                (transform.position.x < screenLeft ||
+                 transform.position.x > screenRight ||
+                 transform.position.y < screenBottom ||
+                 transform.position.y > screenTop);
+
+            if (isOffScreen)
+            {
+                isGravityFlipped = false;
+                gravity = -gravity;
+            }
+            else
+            {
+                gravityFlipTimeRemaining -= Time.deltaTime;
+                if (gravityFlipTimeRemaining <= 0f)
+                {
+                    isGravityFlipped = false;
+                    gravity = -gravity;
+                }
+            }
+        }
+
+        // SINGLE-PLAYER-ONLY LOGIC: magnet + off-screen defense trigger
+        if (!isMultiplayer)
+        {
+            UpdateCornMagnet();
+            CheckOffScreenAndTriggerDefense();
+        }
     }
 
+    // ============================================================
+    //  SINGLE-PLAYER OFF-SCREEN → DEFENSE (GAMEDAY)
+    // ============================================================
     private void CheckOffScreenAndTriggerDefense()
     {
-        bool isOffScreen = (transform.position.x < screenLeft ||
-                            transform.position.x > screenRight ||
-                            transform.position.y < screenBottom ||
-                            transform.position.y > screenTop);
+        bool isOffScreen =
+            (transform.position.x < screenLeft ||
+             transform.position.x > screenRight ||
+             transform.position.y < screenBottom ||
+             transform.position.y > screenTop);
 
         if (isOffScreen && !hasLeftScreen)
         {
@@ -177,15 +315,82 @@ public class Player : MonoBehaviour
         }
     }
 
+    // ============================================================
+    //  COLLISIONS
+    // ============================================================
     private void OnTriggerEnter2D(Collider2D other)
     {
-        Debug.Log($"[Player] Collided with {other.gameObject.name} (Tag: {other.tag}) at {other.transform.position}");
+        Debug.Log($"[Player] Collided with {other.gameObject.name} ({other.tag})");
 
+        // ========================
+        // MULTIPLAYER COLLISIONS
+        // ========================
+        if (isMultiplayer)
+        {
+            var mp = MultiplayerManager.Instance;
+
+            // Ignore the special defense ball carrier bird – that script resolves defense
+            if (other.GetComponent<MultiplayerBallCarrierBird>() != null)
+                return;
+
+            // Enemy birds
+            if (other.CompareTag("Obstacle"))
+            {
+                bool isCarrier = mp.IsBallCarrier(this);
+
+                if (!mp.InDefenseRound)
+                {
+                    // OFFENSE
+                    if (isCarrier)
+                    {
+                        mp.GameOver();
+                        AudioManager.Instance?.PlayGrunt();
+                    }
+
+                    else
+                        Destroy(other.gameObject);
+                }
+                else
+                {
+                    // DEFENSE – both players can destroy birds
+                    Destroy(other.gameObject);
+                }
+
+                return;
+            }
+
+            // Ground = instant game over for team
+            if (other.CompareTag("Ground"))
+            {
+                mp.GameOver();
+                return;
+            }
+
+            // Scoring (safety guard – normal scoring already done via football/goalpost)
+            if (other.CompareTag("Scoring"))
+            {
+                mp.OnPlayerEnteredScoring(this);
+                return;
+            }
+
+            return;
+        }
+
+        // ========================
+        // SINGLE-PLAYER COLLISIONS
+        // ========================
         if (other.gameObject.CompareTag("Obstacle"))
         {
-            TakeDamage();
+            if (GameManager.CurrentGameMode == GameManager.GameMode.Iowa && other.GetComponent<Tornado>() != null)
+            {
+                ApplyTornadoEffect();
+            }
+            else
+            {
+                TakeDamage();
+            }
         }
-        if (other.gameObject.CompareTag("Ground"))
+        else if (other.gameObject.CompareTag("Ground"))
         {
             DieToGround();
         }
@@ -199,6 +404,27 @@ public class Player : MonoBehaviour
         }
     }
 
+    // ============================================================
+    //  MULTIPLAYER HELMET
+    // ============================================================
+    public void SetMultiplayerHelmet(bool enabled)
+    {
+        hasHelmet = enabled;
+        if (enabled)
+        {
+            helmetDurability = int.MaxValue;
+            helmetDisplay?.SetActive(true);
+        }
+        else
+        {
+            helmetDurability = 0;
+            helmetDisplay?.SetActive(false);
+        }
+    }
+
+    // ============================================================
+    //  SINGLE-PLAYER DAMAGE / HEALTH
+    // ============================================================
     private void TakeDamage()
     {
         if (isInvulnerable)
@@ -208,7 +434,7 @@ public class Player : MonoBehaviour
         {
             helmetDurability--;
             GameManager.OnPlayerDamaged(helmetDurability);
-            
+
             if (helmetDurability == 0)
             {
                 hasHelmet = false;
@@ -219,13 +445,15 @@ public class Player : MonoBehaviour
         }
         else
         {
+            // GameDay: straight up game over
             if (GameManager.CurrentGameMode == GameManager.GameMode.GameDay)
             {
                 GameManager.GameOver();
-                AudioManager.Instance?.PlayDie();
+                AudioManager.Instance?.PlayGrunt();
                 return;
             }
 
+            // Iowa: knockback instead of instant death
             if (GameManager.CurrentGameMode == GameManager.GameMode.Iowa)
             {
                 ApplyKnockback();
@@ -237,7 +465,7 @@ public class Player : MonoBehaviour
             if (playerHealth <= 0)
             {
                 GameManager.GameOver();
-                AudioManager.Instance?.PlayDie();
+                AudioManager.Instance?.PlayGameOver();
             }
             else
             {
@@ -248,6 +476,7 @@ public class Player : MonoBehaviour
 
     private void ApplyKnockback()
     {
+        AudioManager.Instance?.PlayTackle();
         isKnockedBack = true;
         knockbackVelocity = Vector3.left * KNOCKBACK_SPEED;
         Invoke(nameof(EndKnockback), KNOCKBACK_DURATION);
@@ -257,6 +486,12 @@ public class Player : MonoBehaviour
     {
         isKnockedBack = false;
         knockbackVelocity = Vector3.zero;
+    }
+
+    private void ApplyTornadoEffect()
+    {
+        float verticalVelocity = Random.value < 0.5f ? 10f : -10f;
+        direction.y = verticalVelocity;
     }
 
     private void HandleCollectible(GameObject collectible)
@@ -294,14 +529,16 @@ public class Player : MonoBehaviour
         GameManager.OnPlayerHealed(helmetDurability);
     }
 
+    private void DieToGround()
+    {
+        Debug.Log("[Player] Ground hit — instant death.");
+        AudioManager.Instance?.PlaySplat();
+        GameManager.GameOver();
+    }
 
-private void DieToGround()
-{
-    Debug.Log("[Player] Ground hit — instant death.");
-    AudioManager.Instance?.PlayDie();
-    GameManager.GameOver();  // bypass helmet/health entirely
-}
-
+    // ============================================================
+    //  BOOSTS
+    // ============================================================
     public void ApplyHorizontalBoost(float distance, float speed)
     {
         boostVelocityX = speed;
@@ -309,11 +546,21 @@ private void DieToGround()
         ApplyBoostInvulnerability();
     }
 
+    public void ApplyGravityFlip(float duration)
+    {
+        isGravityFlipped = true;
+        gravityFlipTimeRemaining = duration;
+        gravity = -gravity;
+    }
+
+    // ============================================================
+    //  INVULNERABILITY / COLOR EFFECTS
+    // ============================================================
     private void ApplyDamageInvulnerability()
     {
         if (colorAnimationCoroutine != null)
             StopCoroutine(colorAnimationCoroutine);
-        
+
         isInvulnerable = true;
         colorAnimationCoroutine = StartCoroutine(AnimateColorGradient(Color.black, INVULNERABILITY_DURATION));
     }
@@ -322,7 +569,7 @@ private void DieToGround()
     {
         if (colorAnimationCoroutine != null)
             StopCoroutine(colorAnimationCoroutine);
-        
+
         isInvulnerable = true;
         colorAnimationCoroutine = StartCoroutine(AnimateRainbowCycle(INVULNERABILITY_DURATION));
     }
@@ -331,7 +578,7 @@ private void DieToGround()
     {
         if (colorAnimationCoroutine != null)
             StopCoroutine(colorAnimationCoroutine);
-        
+
         isInvulnerable = true;
         colorAnimationCoroutine = StartCoroutine(AnimateRainbowCycle(INVULNERABILITY_DURATION));
     }
@@ -339,56 +586,51 @@ private void DieToGround()
     private IEnumerator AnimateColorGradient(Color targetColor, float duration)
     {
         float elapsed = 0f;
-        float halfDuration = duration / 2f;
-        
+        float half = duration / 2f;
+
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            float t = elapsed / halfDuration;
-            
+            float t = elapsed / half;
+
             if (t <= 1f)
-            {
                 spriteRenderer.color = Color.Lerp(originalColor, targetColor, t);
-            }
             else
-            {
-                float returnT = (t - 1f);
-                spriteRenderer.color = Color.Lerp(targetColor, originalColor, returnT);
-            }
-            
+                spriteRenderer.color = Color.Lerp(targetColor, originalColor, t - 1f);
+
             yield return null;
         }
-        
+
         spriteRenderer.color = originalColor;
         isInvulnerable = false;
     }
 
     private IEnumerator AnimateRainbowCycle(float duration)
     {
-        Color[] rainbowColors = new Color[]
-        {
+        Color[] colors = {
             Color.red,
-            new Color(1f, 1f, 0f),
+            new Color(1f,1f,0f),
             Color.green,
             Color.cyan,
             Color.blue,
-            new Color(1f, 0f, 1f)
+            new Color(1f,0f,1f)
         };
 
         float elapsed = 0f;
-        int colorIndex = 0;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            float cycleProgress = (elapsed / duration) * rainbowColors.Length;
-            
-            colorIndex = (int)cycleProgress % rainbowColors.Length;
-            int nextColorIndex = (colorIndex + 1) % rainbowColors.Length;
-            
-            float colorLerpT = cycleProgress - (int)cycleProgress;
-            spriteRenderer.color = Color.Lerp(rainbowColors[colorIndex], rainbowColors[nextColorIndex], colorLerpT);
-            
+
+            float t = (elapsed / duration) * colors.Length;
+
+            int i = (int)t % colors.Length;
+            int next = (i + 1) % colors.Length;
+
+            float lerpT = t - Mathf.Floor(t);
+
+            spriteRenderer.color = Color.Lerp(colors[i], colors[next], lerpT);
+
             yield return null;
         }
 
@@ -396,10 +638,13 @@ private void DieToGround()
         isInvulnerable = false;
     }
 
+    // ============================================================
+    //  CORN MAGNET (SINGLE-PLAYER)
+    // ============================================================
     public void ActivateCornMagnet(float duration)
     {
         bool wasAlreadyActive = isMagnetActive;
-        
+
         magnetDurationRemaining += duration;
         magnetTotalDuration = magnetDurationRemaining;
         isMagnetActive = true;
@@ -425,7 +670,7 @@ private void DieToGround()
             return;
 
         cornMagnetDisplay.SetActive(true);
-        
+
         if (magnetSpriteRenderer != null)
         {
             Color magnetColor = magnetSpriteRenderer.color;
@@ -453,23 +698,12 @@ private void DieToGround()
         }
         else
         {
-            float timeUntilFade = magnetDurationRemaining - MAGNET_FADE_START_TIME;
-            
-            if (cornMagnetDisplay != null && magnetSpriteRenderer != null)
+            if (magnetDurationRemaining <= MAGNET_FADE_START_TIME && magnetSpriteRenderer != null)
             {
-                if (timeUntilFade <= 0f)
-                {
-                    float fadeProgress = (MAGNET_FADE_START_TIME - magnetDurationRemaining) / MAGNET_FADE_START_TIME;
-                    Color magnetColor = magnetSpriteRenderer.color;
-                    magnetColor.a = Mathf.Lerp(1f, 0f, fadeProgress);
-                    magnetSpriteRenderer.color = magnetColor;
-                }
-                else
-                {
-                    Color magnetColor = magnetSpriteRenderer.color;
-                    magnetColor.a = 1f;
-                    magnetSpriteRenderer.color = magnetColor;
-                }
+                float alpha = magnetDurationRemaining / MAGNET_FADE_START_TIME;
+                Color magnetColor = magnetSpriteRenderer.color;
+                magnetColor.a = alpha;
+                magnetSpriteRenderer.color = magnetColor;
             }
 
             AutoCollectCornKernels();
@@ -477,27 +711,25 @@ private void DieToGround()
     }
 
     private void AutoCollectCornKernels()
-{
-    // How close in X we consider "the same x coordinate"
-    const float xEpsilon = 0.05f;
-
-    CornKernel[] allCornKernels = FindObjectsOfType<CornKernel>();
-
-    foreach (CornKernel kernel in allCornKernels)
     {
-        float xDiff = Mathf.Abs(kernel.transform.position.x - transform.position.x);
+        const float xEpsilon = 0.05f;
 
-        // "Same x" within a small tolerance, ignore Y so any kernel that passes that x is grabbed
-        if (xDiff <= xEpsilon)
+        CornKernel[] allCornKernels = FindObjectsOfType<CornKernel>();
+
+        foreach (CornKernel kernel in allCornKernels)
         {
-            kernel.Collect(this);
-            Destroy(kernel.gameObject);
+            float xDiff = Mathf.Abs(kernel.transform.position.x - transform.position.x);
+            if (xDiff <= xEpsilon)
+            {
+                kernel.Collect(this);
+                Destroy(kernel.gameObject);
+            }
         }
     }
-}
 
     public bool IsMagnetActive() => isMagnetActive;
 
+    // Public getters (used elsewhere)
     public int GetHealth() => playerHealth;
     public int GetMaxHealth() => maxPlayerHealth;
     public int GetHelmetDurability() => helmetDurability;
