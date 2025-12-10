@@ -508,17 +508,17 @@ public void OnDefenseCarrierTackled()
 
     defenseCarrierTackled = true;
 
-    // First: despawn ALL spawned objects (birds, posts, football, etc.)
     if (spawner != null)
         spawner.ResetSpawner();
 
-    // You can optionally give points to the team here:
-    // teamScore += 3;  // or 7
+    // Optionally award points here if you want:
+    // teamScore += 3;
     // UpdateScoreUI();
 
-    // Now end defense round as a player win
+    // Mark this defense round as a WIN
     EndDefenseRound(true);
 }
+
 
 
 
