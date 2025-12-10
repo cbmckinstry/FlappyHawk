@@ -141,6 +141,17 @@ public class Player : MonoBehaviour
             }
         }
 
+        if (colorAnimationCoroutine != null)
+    {
+        StopCoroutine(colorAnimationCoroutine);
+        colorAnimationCoroutine = null;
+    }
+
+    isInvulnerable = false;
+
+    if (spriteRenderer != null)
+        spriteRenderer.color = originalColor;
+
         // SINGLE-PLAYER SETUP
         if (!isMultiplayer)
         {
