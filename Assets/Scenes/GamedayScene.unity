@@ -3844,6 +3844,7 @@ MonoBehaviour:
   SettingsPanel: {fileID: 1083358946}
   ControlsPanel: {fileID: 411379046}
   GameOverPanel: {fileID: 1058118912}
+  pauseResumeButton: {fileID: 0}
 --- !u!4 &655679944
 Transform:
   m_ObjectHideFlags: 0
@@ -4099,8 +4100,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 33e09aa462cf5d846b2b5f08dc5f80e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ControllerInputManager
-  dpadDeadzone: 0.5
-  stickDeadzone: 0.5
 --- !u!4 &740874905
 Transform:
   m_ObjectHideFlags: 0
@@ -7178,7 +7177,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Drop Ball (Offense Only):\n\u2022 E\n\u2022 R1 (PS) / RB (Xbox)\n\n\n\nOn
+  m_text: "Drop Ball (Offense Only):\n\u2022 S\n\u2022 R1 (PS) / RB (Xbox)\n\n\n\nOn
     Defense:\n\u2022 A Cyclone bird will carry the football\n\u2022 Your goal is
     to hit the ball carrier before it scores\n\u2022 Time your flaps and position
     carefully to intercept\n"
@@ -8932,6 +8931,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d574dbe1b6da45bf88dc22bb36a14c0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
+  playerID: 0
+  isMultiplayer: 0
   gravity: -9.8
   strength: 5
   flyingSprites:
