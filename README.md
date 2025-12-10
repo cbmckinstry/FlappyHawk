@@ -1,4 +1,4 @@
-# Hawkeye Flappy — Updated README (2025)
+# Hawkeye Flappy — **Requires 6000.2.7f2 **
 
 Hawkeye Flappy is a modern, expanded reinterpretation of Flappy Bird featuring Iowa-themed environments, football mechanics, multiple game modes, multiplayer support, and dynamic difficulty systems.
 
@@ -129,5 +129,3 @@ Controller navigation is fully supported.
 ## Summary
 
 Hawkeye Flappy has grown far beyond a traditional Flappy Bird clone. With football-themed mechanics, multiple game modes, multiplayer support, dynamic obstacles, and a fully integrated leaderboard and stats system, it offers a wide range of ways to play.
-
-This README provides a simple overview without diving into technical detail, while still representing the game's true features as of 2025.
