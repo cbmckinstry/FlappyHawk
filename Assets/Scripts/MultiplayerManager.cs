@@ -49,11 +49,10 @@ public class MultiplayerManager : MonoBehaviour
 
     private Camera cam;
 
-
     // === STATE ===
     public bool InDefenseRound { get; private set; } = false;
     private bool isSpawningPaused = false;
-    private bool defenseCarrierTackled = false;  
+    private bool defenseCarrierTackled = false;
 
     private Player ballCarrier;
     private Player blocker;
@@ -62,6 +61,13 @@ public class MultiplayerManager : MonoBehaviour
     private int opponentScore = 0;
 
     private Coroutine modePopupRoutine;
+
+    private enum ModeDisplayType
+    {
+        Offense,
+        Defense
+        // SWITCH removed
+    }
 
     private void Awake()
     {
@@ -97,7 +103,6 @@ public class MultiplayerManager : MonoBehaviour
         Pause();
     }
 
-
     // ============================================================
     //  ROLE SETUP
     // ============================================================
@@ -116,13 +121,25 @@ public class MultiplayerManager : MonoBehaviour
         player2.isMultiplayer = true;
     }
 
-    private void SwapRoles()
+    private bool SwapRoles()
     {
-        var tmp = ballCarrier;
+        // If we don't have both players for some reason, do nothing
+        if (ballCarrier == null || blocker == null)
+            return false;
+
+        // Remember who was the ball carrier before the swap
+        Player previousCarrier = ballCarrier;
+
+        // Swap roles: carrier ↔ blocker
+        Player tmp = ballCarrier;
         ballCarrier = blocker;
         blocker = tmp;
 
+        // Reposition them for the new drive
         PositionPlayersForNewDrive();
+
+        // Did the ball carrier actually change?
+        return (ballCarrier != previousCarrier);
     }
 
     private void PositionPlayersForNewDrive()
@@ -178,12 +195,23 @@ public class MultiplayerManager : MonoBehaviour
             opponentScoreText.text = opponentScore.ToString();
     }
 
-    private void UpdateModeDisplay(bool playPopup = true)
+    private void UpdateModeDisplay(ModeDisplayType mode, bool playPopup = true)
     {
         if (modeText == null) return;
 
-        modeText.text = InDefenseRound ? "DEFENSE" : "OFFENSE";
-        if (playPopup) ShowModePopup();
+        switch (mode)
+        {
+            case ModeDisplayType.Offense:
+                modeText.text = "OFFENSE";
+                break;
+
+            case ModeDisplayType.Defense:
+                modeText.text = "DEFENSE";
+                break;
+        }
+
+        if (playPopup)
+            ShowModePopup();
     }
 
     private void ShowModePopup()
@@ -224,107 +252,102 @@ public class MultiplayerManager : MonoBehaviour
                 }
             }
         }
-
-        else{
-    if (playButton.activeSelf)
-    {
-        // Controllers can start
-        foreach (var pad in Gamepad.all)
+        else
         {
-            if (pad.buttonSouth.wasPressedThisFrame)
+            if (playButton.activeSelf)
             {
-                playButton.GetComponent<Button>().onClick.Invoke();
-                return;
+                // Controllers can start
+                foreach (var pad in Gamepad.all)
+                {
+                    if (pad.buttonSouth.wasPressedThisFrame)
+                    {
+                        playButton.GetComponent<Button>().onClick.Invoke();
+                        return;
+                    }
+                }
+
+                // Keyboard can start (Enter or Space)
+                if (Keyboard.current != null &&
+                    (Keyboard.current.enterKey.wasPressedThisFrame ||
+                     Keyboard.current.spaceKey.wasPressedThisFrame))
+                {
+                    playButton.GetComponent<Button>().onClick.Invoke();
+                    return;
+                }
             }
         }
-
-        // Keyboard can start (Enter or Space)
-        if (Keyboard.current != null &&
-            (Keyboard.current.enterKey.wasPressedThisFrame ||
-             Keyboard.current.spaceKey.wasPressedThisFrame))
-        {
-            playButton.GetComponent<Button>().onClick.Invoke();
-            return;
-        }
-    }
-    }
-
 
         UpdatePlayerLabels();
     }
 
-
-
     private void CheckForControllerJoin()
-{
-    // ============================
-    // CONTROLLER JOIN
-    // ============================
-    var pads = Gamepad.all;
-
-    foreach (var pad in pads)
     {
-        // Player 1 join (controller)
-        if (!p1Ready && pad.buttonSouth.wasPressedThisFrame)
-        {
-            p1Ready = true;
-            p1Controller = pad;
+        // ============================
+        // CONTROLLER JOIN
+        // ============================
+        var pads = Gamepad.all;
 
-            ActivatePlayerSlot(1);
-            p1Text.text = "Player 1: Controller connected";
-            continue;
+        foreach (var pad in pads)
+        {
+            // Player 1 join (controller)
+            if (!p1Ready && pad.buttonSouth.wasPressedThisFrame)
+            {
+                p1Ready = true;
+                p1Controller = pad;
+
+                ActivatePlayerSlot(1);
+                p1Text.text = "Player 1: Controller connected";
+                continue;
+            }
+
+            // Player 2 join (controller)
+            if (!p2Ready &&
+                pad.buttonSouth.wasPressedThisFrame &&
+                p1Controller != null &&
+                pad.deviceId != p1Controller.deviceId)
+            {
+                p2Ready = true;
+                p2Controller = pad;
+
+                ActivatePlayerSlot(2);
+                p2Text.text = "Player 2: Controller connected";
+                continue;
+            }
         }
 
-        // Player 2 join (controller)
-        if (!p2Ready &&
-            pad.buttonSouth.wasPressedThisFrame &&
-            p1Controller != null &&
-            pad.deviceId != p1Controller.deviceId)
+        // ============================
+        // KEYBOARD JOIN
+        // ============================
+        if (Keyboard.current != null)
         {
-            p2Ready = true;
-            p2Controller = pad;
+            // Player 1 join (keyboard)
+            if (!p1Ready && Keyboard.current.wKey.wasPressedThisFrame)
+            {
+                p1Ready = true;
+                p1Controller = null;   // keyboard-controlled
+                ActivatePlayerSlot(1);
+                p1Text.text = "Player 1: Keyboard (W/S)";
+            }
 
-            ActivatePlayerSlot(2);
-            p2Text.text = "Player 2: Controller connected";
-            continue;
+            // Player 2 join (keyboard)
+            if (!p2Ready && Keyboard.current.upArrowKey.wasPressedThisFrame)
+            {
+                p2Ready = true;
+                p2Controller = null;   // keyboard-controlled
+                ActivatePlayerSlot(2);
+                p2Text.text = "Player 2: Keyboard (Up/Down)";
+            }
+        }
+
+        // ============================
+        // ENABLE PLAY BUTTON
+        // ============================
+        if (p1Ready && p2Ready)
+        {
+            playButton?.SetActive(true);
+            SelectPlayButton();
         }
     }
-
-    // ============================
-    // KEYBOARD JOIN
-    // ============================
-    if (Keyboard.current != null)
-    {
-        // Player 1 join (keyboard)
-        if (!p1Ready && Keyboard.current.wKey.wasPressedThisFrame)
-        {
-            p1Ready = true;
-            p1Controller = null;   // keyboard-controlled
-            ActivatePlayerSlot(1);
-            p1Text.text = "Player 1: Keyboard (W/S)";
-        }
-
-        // Player 2 join (keyboard)
-        if (!p2Ready && Keyboard.current.upArrowKey.wasPressedThisFrame)
-        {
-            p2Ready = true;
-            p2Controller = null;   // keyboard-controlled
-            ActivatePlayerSlot(2);
-            p2Text.text = "Player 2: Keyboard (Up/Down)";
-        }
-    }
-
-    // ============================
-    // ENABLE PLAY BUTTON
-    // ============================
-    if (p1Ready && p2Ready)
-    {
-        playButton?.SetActive(true);
-        SelectPlayButton();
-    }
-}
-
-
 
     private void ActivatePlayerSlot(int slot)
     {
@@ -363,44 +386,44 @@ public class MultiplayerManager : MonoBehaviour
             player2Label.position = pos;
         }
     }
+
     public Gamepad GetControllerForPlayer(Player.PlayerID pid)
     {
         if (pid == Player.PlayerID.Player1) return p1Controller;
         return p2Controller;
     }
 
-
     // ============================================================
     //  PLAY / RESET / GAME OVER
     // ============================================================
 
     public void Play()
-{
-    PauseManager.GameIsActive = true;
+    {
+        PauseManager.GameIsActive = true;
 
-    readyMenu?.SetActive(false);
-    playButton?.SetActive(false);
-    readyButton?.SetActive(false);
-    gameOverPanel?.SetActive(false);
+        readyMenu?.SetActive(false);
+        playButton?.SetActive(false);
+        readyButton?.SetActive(false);
+        gameOverPanel?.SetActive(false);
 
-    ActivatePlayer(player1, -1.5f);
-    ActivatePlayer(player2, 1.5f);
+        ActivatePlayer(player1, -1.5f);
+        ActivatePlayer(player2, 1.5f);
 
-    // Re-enable player tags
-    if (player1Label != null)
-        player1Label.gameObject.SetActive(true);
-    if (player2Label != null)
-        player2Label.gameObject.SetActive(true);
+        // Re-enable player tags
+        if (player1Label != null)
+            player1Label.gameObject.SetActive(true);
+        if (player2Label != null)
+            player2Label.gameObject.SetActive(true);
 
-    ResetScores();
-    spawner?.ResetSpawner();
+        ResetScores();
+        spawner?.ResetSpawner();
 
-    SetInitialRoles();
-    PositionPlayersForNewDrive();
-    StartOffenseRound();
+        SetInitialRoles();
+        PositionPlayersForNewDrive();
+        StartOffenseRound();
 
-    Time.timeScale = 1f;
-}
+        Time.timeScale = 1f;
+    }
 
     private void ActivatePlayer(Player p, float xPos)
     {
@@ -424,45 +447,43 @@ public class MultiplayerManager : MonoBehaviour
     }
 
     public void GameOver()
-{
-    // If we already successfully tackled the carrier in this defense round,
-    // ignore any late GameOver calls coming from leftover collisions.
-    if (InDefenseRound && defenseCarrierTackled)
-        return;
+    {
+        // If we already successfully tackled the carrier in this defense round,
+        // ignore any late GameOver calls coming from leftover collisions.
+        if (InDefenseRound && defenseCarrierTackled)
+            return;
 
-    AudioManager.Instance?.PlaySplat();
+        AudioManager.Instance?.PlaySplat();
 
-    PauseManager.GameIsActive = false;
+        PauseManager.GameIsActive = false;
 
-    // Hide players
-    if (player1 != null) player1.gameObject.SetActive(false);
-    if (player2 != null) player2.gameObject.SetActive(false);
+        // Hide players
+        if (player1 != null) player1.gameObject.SetActive(false);
+        if (player2 != null) player2.gameObject.SetActive(false);
 
-    // Despawn football, goal posts, and all spawned enemies
-    if (spawner != null)
-        spawner.ResetSpawner();
+        // Despawn football, goal posts, and all spawned enemies
+        if (spawner != null)
+            spawner.ResetSpawner();
 
-    // Hide player tags (labels above heads)
-    if (player1Label != null)
-        player1Label.gameObject.SetActive(false);
-    if (player2Label != null)
-        player2Label.gameObject.SetActive(false);
+        // Hide player tags (labels above heads)
+        if (player1Label != null)
+            player1Label.gameObject.SetActive(false);
+        if (player2Label != null)
+            player2Label.gameObject.SetActive(false);
 
-    // Update game over scores
-    if (goTeamScoreText != null)
-        goTeamScoreText.text = teamScore.ToString();
+        // Update game over scores
+        if (goTeamScoreText != null)
+            goTeamScoreText.text = teamScore.ToString();
 
-    if (goOpponentScoreText != null)
-        goOpponentScoreText.text = opponentScore.ToString();
+        if (goOpponentScoreText != null)
+            goOpponentScoreText.text = opponentScore.ToString();
 
-    gameOverPanel?.SetActive(true);
-    playButton?.SetActive(true);
+        gameOverPanel?.SetActive(true);
+        playButton?.SetActive(true);
 
-    Pause();
-    SelectPlayButton();
-}
-
-
+        Pause();
+        SelectPlayButton();
+    }
 
     // ============================================================
     //  ROUND FLOW (OFFENSE / DEFENSE)
@@ -470,14 +491,13 @@ public class MultiplayerManager : MonoBehaviour
 
     private void StartOffenseRound()
     {
-
         AudioManager.Instance?.PlayWhistle();
 
         InDefenseRound = false;
         isSpawningPaused = false;
 
         GiveHelmetsForOffense();
-        UpdateModeDisplay(true);
+        UpdateModeDisplay(ModeDisplayType.Offense, true);
 
         spawner?.ResetSpawner();
         PositionPlayersForNewDrive();
@@ -487,40 +507,34 @@ public class MultiplayerManager : MonoBehaviour
     }
 
     private void StartDefenseRound()
-{
-    AudioManager.Instance?.PlayWhistle();
+    {
+        AudioManager.Instance?.PlayWhistle();
 
-    InDefenseRound = true;
-    defenseCarrierTackled = false;   // NEW
-    isSpawningPaused = false;
+        InDefenseRound = true;
+        defenseCarrierTackled = false;
+        isSpawningPaused = false;
 
-    GiveHelmetsForDefense();
-    UpdateModeDisplay(true);
+        GiveHelmetsForDefense();
+        UpdateModeDisplay(ModeDisplayType.Defense, true);
 
-    spawner?.ResetSpawner();
-    StartCoroutine(DefenseRoundTimer());
-}
+        spawner?.ResetSpawner();
+        StartCoroutine(DefenseRoundTimer());
+    }
 
-public void OnDefenseCarrierTackled()
-{
-    if (!InDefenseRound)
-        return;
+    public void OnDefenseCarrierTackled()
+    {
+        if (!InDefenseRound)
+            return;
 
-    defenseCarrierTackled = true;
+        defenseCarrierTackled = true;
 
-    if (spawner != null)
-        spawner.ResetSpawner();
+        // Despawn ALL spawned objects (birds, posts, football, etc.)
+        if (spawner != null)
+            spawner.ResetSpawner();
 
-    // Optionally award points here if you want:
-    // teamScore += 3;
-    // UpdateScoreUI();
-
-    // Mark this defense round as a WIN
-    EndDefenseRound(true);
-}
-
-
-
+        // End defense round as a player win
+        EndDefenseRound(true);
+    }
 
     private IEnumerator DefenseRoundTimer()
     {
@@ -531,10 +545,13 @@ public void OnDefenseCarrierTackled()
 
     public void EndDefenseRound(bool playerWon)
     {
+        // Kill all relevant spawned objects
+        foreach (var obj in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+            if (obj is CycloneBird or Football or GoalPost or BallCarrierBird)
+                Destroy(obj.gameObject);
+
         InDefenseRound = false;
         isSpawningPaused = false;
-
-        UpdateModeDisplay(true);
 
         if (!playerWon)
         {
@@ -544,12 +561,11 @@ public void OnDefenseCarrierTackled()
             UpdateScoreUI();
         }
 
-        // swap roles AFTER defense
+        // Swap roles (if possible), but no more SWITCH! phase
         SwapRoles();
+
+        // Immediately start a new offense round
         StartOffenseRound();
-
-        // restart offense with new ball carrier
-
     }
 
     public void OnEnemyBallCarrierDespawned()
@@ -616,10 +632,9 @@ public void OnDefenseCarrierTackled()
         player1?.SetMultiplayerHelmet(true);
         player2?.SetMultiplayerHelmet(true);
     }
-    
+
     public void TriggerDefenseRound()
     {
         StartDefenseRound();
     }
-
 }
