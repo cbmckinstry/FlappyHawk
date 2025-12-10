@@ -53,6 +53,7 @@ public class MultiplayerManager : MonoBehaviour
     // === STATE ===
     public bool InDefenseRound { get; private set; } = false;
     private bool isSpawningPaused = false;
+    private bool defenseCarrierTackled = false;  
 
     private Player ballCarrier;
     private Player blocker;
@@ -424,6 +425,11 @@ public class MultiplayerManager : MonoBehaviour
 
     public void GameOver()
 {
+    // If we already successfully tackled the carrier in this defense round,
+    // ignore any late GameOver calls coming from leftover collisions.
+    if (InDefenseRound && defenseCarrierTackled)
+        return;
+
     AudioManager.Instance?.PlaySplat();
 
     PauseManager.GameIsActive = false;
@@ -457,12 +463,14 @@ public class MultiplayerManager : MonoBehaviour
 }
 
 
+
     // ============================================================
     //  ROUND FLOW (OFFENSE / DEFENSE)
     // ============================================================
 
     private void StartOffenseRound()
     {
+
         AudioManager.Instance?.PlayWhistle();
 
         InDefenseRound = false;
@@ -479,18 +487,40 @@ public class MultiplayerManager : MonoBehaviour
     }
 
     private void StartDefenseRound()
-    {
-        AudioManager.Instance?.PlayWhistle();
+{
+    AudioManager.Instance?.PlayWhistle();
 
-        InDefenseRound = true;
-        isSpawningPaused = false;
+    InDefenseRound = true;
+    defenseCarrierTackled = false;   // NEW
+    isSpawningPaused = false;
 
-        GiveHelmetsForDefense();
-        UpdateModeDisplay(true);
+    GiveHelmetsForDefense();
+    UpdateModeDisplay(true);
 
-        spawner?.ResetSpawner();
-        StartCoroutine(DefenseRoundTimer());
-    }
+    spawner?.ResetSpawner();
+    StartCoroutine(DefenseRoundTimer());
+}
+
+public void OnDefenseCarrierTackled()
+{
+    if (!InDefenseRound)
+        return;
+
+    defenseCarrierTackled = true;
+
+    // First: despawn ALL spawned objects (birds, posts, football, etc.)
+    if (spawner != null)
+        spawner.ResetSpawner();
+
+    // You can optionally give points to the team here:
+    // teamScore += 3;  // or 7
+    // UpdateScoreUI();
+
+    // Now end defense round as a player win
+    EndDefenseRound(true);
+}
+
+
 
     private IEnumerator DefenseRoundTimer()
     {
@@ -516,9 +546,10 @@ public class MultiplayerManager : MonoBehaviour
 
         // swap roles AFTER defense
         SwapRoles();
+        StartOffenseRound();
 
         // restart offense with new ball carrier
-        StartOffenseRound();
+
     }
 
     public void OnEnemyBallCarrierDespawned()

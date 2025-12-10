@@ -129,21 +129,20 @@ public class MultiplayerBallCarrierBird : MonoBehaviour
         }
     }
 
-    private void OnTriggerEnter2D(Collider2D other)
+   private void OnTriggerEnter2D(Collider2D other){
+    if (hasBeenHit || hasDespawned) return;
+
+    Player p = other.GetComponent<Player>();
+    if (p != null && MP != null && MP.InDefenseRound)
     {
-        if (hasBeenHit || hasDespawned) return;
+        hasBeenHit = true;
 
-        Player p = other.GetComponent<Player>();
-        if (p != null && MP != null)
-        {
-            hasBeenHit = true;
+        // First thing: tell the manager that we tackled the carrier.
+        // Manager will despawn ALL birds and handle the round end.
+        MP.OnDefenseCarrierTackled();
+    }}
 
-            // defense win!
-            Destroy(gameObject);
-            MP.EndDefenseRound(true);
-
-        }
-    }
+    
 
     public void AttachBallSprite(Sprite sprite)
     {
