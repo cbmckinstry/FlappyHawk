@@ -1,6 +1,6 @@
-# Hawkeye Flappy — **Requires 6000.2.7f2 **
+# Flappy Hawk — Requires 6000.2.7f2
 
-Hawkeye Flappy is a modern, expanded reinterpretation of Flappy Bird featuring Iowa-themed environments, football mechanics, multiple game modes, multiplayer support, and dynamic difficulty systems.
+Flappy Hawk is a modern, expanded reinterpretation of Flappy Bird featuring Iowa-themed environments, football mechanics, multiple game modes, multiplayer support, and dynamic difficulty systems.
 
 ---
 
