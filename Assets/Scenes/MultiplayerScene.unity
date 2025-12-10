@@ -3877,12 +3877,12 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Player1 Flap:\n\u2022 X (PS) / A (Xbox)\nPlayer1 Drop:\n\u2022 R1 (PS)
-    / RB (Xbox)\n\n\n\nOn Offense: \n\u2022 Grab the football to start an offensive
-    drive\n\u2022 Ball Carrier tries to reach or drop the ball through the field
-    goal\n\u2022 Blocker stays ahead, clearing a path through Cyclone birds\n\u2022
-    Players switch roles after each offensive drive\n\u2022 Players from helmets
-    are safe from collisions\n"
+  m_text: "Player1 Flap:\n\u2022 X (PS) / A (Xbox) / W (Keyboard)\nPlayer1 Drop:\n\u2022
+    R1 (PS) / RB (Xbox) / S (Keyboard)\n\n\n\nOn Offense: \n\u2022 Grab the football
+    to start an offensive drive\n\u2022 Ball Carrier tries to reach or drop the ball
+    through the field goal\n\u2022 Blocker stays ahead, clearing a path through Cyclone
+    birds\n\u2022 Players switch roles after each offensive drive\n\u2022 Players
+    from helmets are safe from collisions\n"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: f4036ace75d735a44a5a1d93a297a167, type: 2}
   m_sharedMaterial: {fileID: -5544383018137442696, guid: f4036ace75d735a44a5a1d93a297a167, type: 2}
@@ -4080,6 +4080,7 @@ MonoBehaviour:
   SettingsPanel: {fileID: 1083358946}
   ControlsPanel: {fileID: 411379046}
   GameOverPanel: {fileID: 1058118912}
+  pauseResumeButton: {fileID: 0}
 --- !u!4 &655679944
 Transform:
   m_ObjectHideFlags: 0
@@ -5873,6 +5874,8 @@ MonoBehaviour:
   minY: -1
   maxY: 2
   defenseCarrierDelay: 3
+  defenseWaveIntervalMin: 0.45
+  defenseWaveIntervalMax: 0.8
 --- !u!1 &1140793439
 GameObject:
   m_ObjectHideFlags: 0
@@ -7564,11 +7567,11 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Player2 Flap:\n\u2022 Triangle (PS) / Y (Xbox)\nPlayer2 Drop:\n\u2022
-    R2 (PS) / RT (Xbox)\n\n\n\n\nOn Defense:\n\u2022 One Cyclone bird is secretly
-    carrying the football\n\u2022 Both players try to hit as many birds as possible
-    to reveal the carrier\n\u2022 Hit the correct one to stop the play\n\u2022 If
-    the ball carrier escapes, the opponent scores\n\n"
+  m_text: "Player2 Flap:\n\u2022 Triangle (PS) / Y (Xbox) / Up (Keyboard)\nPlayer2
+    Drop:\n\u2022 R2 (PS) / RT (Xbox) / Down (Keyboard)\n\n\n\n\nOn Defense:\n\u2022
+    One Cyclone bird is secretly carrying the football\n\u2022 Both players try to
+    hit as many birds as possible to reveal the carrier\n\u2022 Hit the correct one
+    to stop the play\n\u2022 If the ball carrier escapes, the opponent scores\n\n"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: f4036ace75d735a44a5a1d93a297a167, type: 2}
   m_sharedMaterial: {fileID: -5544383018137442696, guid: f4036ace75d735a44a5a1d93a297a167, type: 2}

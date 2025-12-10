@@ -92,7 +92,7 @@ public class MultiplayerManager : MonoBehaviour
 
         // Default text
         p1Text.text = "Player 1: A / X / W Key to connect";
-        p2Text.text = "Player 2: A / X / ↑ Key to connect";
+        p2Text.text = "Player 2: A / X / Up Key to connect";
 
         Pause();
     }
@@ -310,7 +310,7 @@ public class MultiplayerManager : MonoBehaviour
             p2Ready = true;
             p2Controller = null;   // keyboard-controlled
             ActivatePlayerSlot(2);
-            p2Text.text = "Player 2: Keyboard (↑)";
+            p2Text.text = "Player 2: Keyboard (Up/Down)";
         }
     }
 
