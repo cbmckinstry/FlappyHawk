@@ -62,11 +62,13 @@ public class MultiplayerManager : MonoBehaviour
 
     private Coroutine modePopupRoutine;
 
+    // Offense drive counter (1,2,3,4,...)
+    private int offenseRoundNumber = 0;
+
     private enum ModeDisplayType
     {
         Offense,
         Defense
-        // SWITCH removed
     }
 
     private void Awake()
@@ -111,35 +113,13 @@ public class MultiplayerManager : MonoBehaviour
     {
         if (player1 == null || player2 == null) return;
 
-        ballCarrier = player1; // P1 always starts with ball
-        blocker = player2;
-
+        // Just set IDs and multiplayer flags here.
+        // Actual carrier/blocker assignment is done in StartOffenseRound.
         player1.playerID = Player.PlayerID.Player1;
         player2.playerID = Player.PlayerID.Player2;
 
         player1.isMultiplayer = true;
         player2.isMultiplayer = true;
-    }
-
-    private bool SwapRoles()
-    {
-        // If we don't have both players for some reason, do nothing
-        if (ballCarrier == null || blocker == null)
-            return false;
-
-        // Remember who was the ball carrier before the swap
-        Player previousCarrier = ballCarrier;
-
-        // Swap roles: carrier ↔ blocker
-        Player tmp = ballCarrier;
-        ballCarrier = blocker;
-        blocker = tmp;
-
-        // Reposition them for the new drive
-        PositionPlayersForNewDrive();
-
-        // Did the ball carrier actually change?
-        return (ballCarrier != previousCarrier);
     }
 
     private void PositionPlayersForNewDrive()
@@ -204,7 +184,6 @@ public class MultiplayerManager : MonoBehaviour
             case ModeDisplayType.Offense:
                 modeText.text = "OFFENSE";
                 break;
-
             case ModeDisplayType.Defense:
                 modeText.text = "DEFENSE";
                 break;
@@ -419,6 +398,7 @@ public class MultiplayerManager : MonoBehaviour
         spawner?.ResetSpawner();
 
         SetInitialRoles();
+        offenseRoundNumber = 0;      // reset counter at the start of a match
         PositionPlayersForNewDrive();
         StartOffenseRound();
 
@@ -496,6 +476,26 @@ public class MultiplayerManager : MonoBehaviour
         InDefenseRound = false;
         isSpawningPaused = false;
 
+        // Increment offense round number
+        offenseRoundNumber++;
+
+        // Decide ball carrier / blocker based on odd/even offense number
+        if (player1 != null && player2 != null)
+        {
+            if (offenseRoundNumber % 2 == 1)
+            {
+                // Odd offense drives: P1 carries, P2 blocks
+                ballCarrier = player1;
+                blocker = player2;
+            }
+            else
+            {
+                // Even offense drives: P2 carries, P1 blocks
+                ballCarrier = player2;
+                blocker = player1;
+            }
+        }
+
         GiveHelmetsForOffense();
         UpdateModeDisplay(ModeDisplayType.Offense, true);
 
@@ -561,10 +561,7 @@ public class MultiplayerManager : MonoBehaviour
             UpdateScoreUI();
         }
 
-        // Swap roles (if possible), but no more SWITCH! phase
-        SwapRoles();
-
-        // Immediately start a new offense round
+        // Go straight into next offense round; it will alternate carrier by odd/even
         StartOffenseRound();
     }
 
